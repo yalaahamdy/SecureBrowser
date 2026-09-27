@@ -68,18 +68,22 @@ class SecurityEngine(
 
     /**
      * مخططات التطبيقات الخارجية:
-     * - intent: يُحكم على وجهته الاحتياطية للمتصفح عبر القائمة البيضاء كاملة —
-     *   بلا وجهة احتياطية = حظر (fail-closed) لأن الوجهة الحقيقية مجهولة.
-     *   ** استثناء مضيّق (v1.2.0) — مشغلات الوسائط المعروفة:**
-     *   intent يستهدف مشغل فيديو/صوت معروفًا (حزمة ضمن القائمة المغلقة أو
-     *   mime video/audio صريح) يُفتح عبر بوابة التطبيقات الخارجية + إعداد
-     *   "مشغلات الفيديو" + التأكيد النظامي — حتى بلا وجهة احتياطية أو مع
-     *   وجهة احتياطية غير مدرجة في القائمة (المشغل هو الوجهة الفعلية، ووجهة
-     *   fallback تُستخدم من المتصفحات فقط ولا ننفذها نحن). هذا يُصلح المنصات
-     *   التعليمية التي تشغّل الفيديو عبر VLC/MX Player وغيرها دون فتح باب
-     *   لأي حزمة مجهولة — كل ما عدا القائمة المغلقة يبقى fail-closed.
-     * - باقي مخططات التطبيقات (tg/whatsapp/geo/market/vlc/rtsp...) → قرار OpenExternal،
-     *   والتنفيذ يمر عبر بوابة الوالدين + التأكيد في ExternalNavigationHandler.
+     * - intent: **سياسة v1.8.0 — وجهة معلنة = بوابة التطبيقات الخارجية:**
+     *   1) intent مثبّت بحزمة (`package=`) → قرار OpenExternal يمر عبر بوابة
+     *      الوالدين (external_apps + تأكيد نظامي) — **نفس مسار المخططات
+     *      المخصصة تمامًا** (zenplayer:// كانت تمر منذ v1.4.0 بينما intent://
+     *      المغلّف لنفس التطبيق يُحظر — عدم اتساق لا يحمي شيئًا لأن الموقع
+     *      يستطيع استدعاء المخطط المخصص مباشرة). هذا يُصلح المنصات التعليمية
+     *      التي تستخدم مشغلها الخاص (Zen Player وغيره) — كانت تُحظر فشل-مغلق
+     *      فلا يحدث شيء عند الضغط على «افتح في المشغل». الحماية تبقى قائمة:
+     *      بوابات الوالدين + التأكيد + تجريد component/selector في المعالج
+     *      (منع intent redirection).
+     *   2) intent وسائطي (mime video/audio أو مخطط مشغل معروف داخلي أو حزمة
+     *      مشغل معروفة) → بوابة "مشغلات الفيديو" (قرار والد مستقل) — كما كان.
+     *   3) بلا حزمة ولا وسائط: fallback مسموح بالقائمة → فتح (سلوك قديم محفوظ)،
+     *      وإلا حظر fail-closed (وجهة مجهولة تمامًا).
+     * - باقي مخططات التطبيقات (tg/whatsapp/geo/market/vlc/rtsp/zenplayer...)
+     *   → قرار OpenExternal عبر بوابة الوالدين + التأكيد في ExternalNavigationHandler.
      */
     private fun validateExternalApp(
         parsed: ParsedUrl,
@@ -92,31 +96,36 @@ class SecurityEngine(
         if (depth >= MAX_INTENT_DEPTH) {
             return NavigationDecision.Block(BlockReason.UNSAFE_SCHEME, "intent_depth", rawUrl)
         }
-        val fallback = ExternalAppPolicy.intentFallbackUrl(parsed.raw)
-        if (fallback == null &&
-            policyManager.videoPlayersEnabled() &&
-            ExternalAppPolicy.isMediaIntent(parsed.raw)
-        ) {
+        val raw = parsed.raw
+        val media = ExternalAppPolicy.isMediaIntent(raw)
+        // 1) وجهة معلنة (package=) → بوابة التطبيقات الخارجية — مثل أي مخطط مخصص.
+        //    المشغلات المعروفة تبقى تحت بوابة "مشغلات الفيديو" المستقلة (قرار والد).
+        if (ExternalAppPolicy.intentTargetPackage(raw) != null) {
+            if (media && !policyManager.videoPlayersEnabled()) {
+                return NavigationDecision.Block(BlockReason.UNSAFE_SCHEME, "video_players_disabled", rawUrl)
+            }
             return NavigationDecision.OpenExternal("intent", rawUrl.orEmpty())
         }
-        if (fallback == null) {
-            return NavigationDecision.Block(BlockReason.UNSAFE_SCHEME, "intent_no_fallback", rawUrl)
-        }
-        return when (val fbDecision = validate(fallback, NavigationType.REDIRECT, depth + 1)) {
-            is NavigationDecision.Allow ->
+        // 2) وسائطي بلا حزمة (mime video/audio أو مخطط مشغل داخلي) → بوابة المشغلات
+        if (media) {
+            return if (policyManager.videoPlayersEnabled()) {
                 NavigationDecision.OpenExternal("intent", rawUrl.orEmpty())
-            is NavigationDecision.Block ->
-                // وجهة fallback غير مسموحة: إن كان الـ intent مشغل وسائط معروفًا
-                // فالمشغل نفسه هو الوجهة الحقيقية — نفتح عبر البوابة، وإلا حظر كما هو.
-                if (policyManager.videoPlayersEnabled() &&
-                    ExternalAppPolicy.isMediaIntent(parsed.raw)
-                ) {
-                    NavigationDecision.OpenExternal("intent", rawUrl.orEmpty())
-                } else {
-                    fbDecision
-                }
-            is NavigationDecision.OpenExternal -> fbDecision
+            } else {
+                NavigationDecision.Block(BlockReason.UNSAFE_SCHEME, "video_players_disabled", rawUrl)
+            }
         }
+        // 3) fallback مسموح بالقائمة → فتح (السلوك القديم محفوظ لـ intent مجهول الوجهة)
+        val fallback = ExternalAppPolicy.intentFallbackUrl(raw)
+        if (fallback != null) {
+            return when (val fbDecision = validate(fallback, NavigationType.REDIRECT, depth + 1)) {
+                is NavigationDecision.Allow ->
+                    NavigationDecision.OpenExternal("intent", rawUrl.orEmpty())
+                is NavigationDecision.Block -> fbDecision
+                is NavigationDecision.OpenExternal -> fbDecision
+            }
+        }
+        // 4) لا حزمة ولا وسائط ولا fallback — وجهة مجهولة تمامًا → fail-closed
+        return NavigationDecision.Block(BlockReason.UNSAFE_SCHEME, "intent_no_fallback", rawUrl)
     }
 
     private fun validateWeb(

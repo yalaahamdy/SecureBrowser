@@ -44,7 +44,13 @@ import kotlinx.coroutines.launch
  * الروابط التي يمنعها Whitelist: إن كانت لنطاق تطبيق معروف (t.me / wa.me / youtube /
  * maps) تُعرض بدائل "فتح في التطبيق" أو الاكتفاء بشاشة الحظر — لا تجاوز للقائمة مطلقًا.
  */
-class ExternalNavigationHandler(private val activity: AppCompatActivity) {
+class ExternalNavigationHandler(
+    private val activity: AppCompatActivity,
+    /** فتح رابط احتياطي (S.browser_fallback_url) داخل المتصفح — يمر بالأمان كأي تنقل. */
+    private val fallbackNavigator: ((String) -> Unit)? = null,
+    /** هل الرابط الاحتياطي مسموح بالقائمة؟ (لعرض زره في حوار عدم وجود تطبيق) */
+    private val fallbackValidator: ((String) -> Boolean)? = null
+) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val settings: SettingsRepository get() = ServiceLocator.settingsRepository
@@ -81,7 +87,7 @@ class ExternalNavigationHandler(private val activity: AppCompatActivity) {
                 // (target هو opaquePart: لـ viber://chat يكون "//chat") وإطلاقه بلا فحص حلّ
                 Intent(Intent.ACTION_VIEW, Uri.parse(ExternalUriBuilder.buildUriText(scheme, target)))
         } ?: run {
-            notifyNoApp(scheme, null)
+            notifyNoApp(scheme, null, fallbackUrlFor(target, scheme))
             return
         }
 
@@ -94,7 +100,7 @@ class ExternalNavigationHandler(private val activity: AppCompatActivity) {
         if (pinned) {
             val resolved = resolveWithFallback(intent, scheme)
             if (!resolved) {
-                notifyNoApp(scheme, intent.data)
+                notifyNoApp(scheme, intent.data, fallbackUrlFor(target, scheme))
                 return
             }
         }
@@ -102,8 +108,19 @@ class ExternalNavigationHandler(private val activity: AppCompatActivity) {
         val appLabel = if (pinned) resolveAppLabel(intent)
         else resolveAppLabelOrNull(intent) ?: activity.getString(R.string.external_app_generic)
         maybeConfirm(appLabel) {
-            launchRobust(intent, scheme, appLabel)
+            launchRobust(intent, scheme, appLabel, fallbackUrlFor(target, scheme))
         }
+    }
+
+    /**
+     * v1.8.0 — رابط احتياطي (S.browser_fallback_url) لـ intent:// فقط:
+     * المتصفحات المعروفة تعرض هذا الرابط عندما لا يجد التطبيق المستهدف —
+     * نستخرجه لعرض زر «فتح الرابط في المتصفح» داخل حوار عدم وجود التطبيق،
+     * ويبقى فتحه رهينًا بالقائمة البيضاء عبر fallbackValidator.
+     */
+    private fun fallbackUrlFor(target: String, scheme: String): String? {
+        if (scheme != "intent") return null
+        return ExternalAppPolicy.intentFallbackUrl(target)
     }
 
     /**
@@ -111,7 +128,7 @@ class ExternalNavigationHandler(private val activity: AppCompatActivity) {
      * 1) إطلاق مباشر؛ 2) عند فشل (تطبيق اختفى/رؤية/حزمة خاطئة) إعادة إطلاق بلا حزمة؛
      * 3) عند الفشل الكامل حوار فشل واضح مع نسخ الرابط — لا صمت ولا انهيار.
      */
-    private fun launchRobust(intent: Intent, scheme: String, appLabel: String) {
+    private fun launchRobust(intent: Intent, scheme: String, appLabel: String, fallbackUrl: String? = null) {
         toast(activity.getString(R.string.external_opening, appLabel))
         try {
             activity.startActivity(intent)
@@ -136,7 +153,7 @@ class ExternalNavigationHandler(private val activity: AppCompatActivity) {
                         navigationType = "EXTERNAL"
                     )
                 }
-                notifyNoApp(scheme, intent.data)
+                notifyNoApp(scheme, intent.data, fallbackUrl)
             }
         }
     }
@@ -248,7 +265,15 @@ class ExternalNavigationHandler(private val activity: AppCompatActivity) {
     }
 
     private fun parseIntentSafely(target: String): Intent? = try {
-        Intent.parseUri(target, Intent.URI_INTENT_SCHEME)
+        Intent.parseUri(target, Intent.URI_INTENT_SCHEME)?.apply {
+            // تحصين v1.8.0 — منع intent redirection (أفضل الممارسات الموثقة):
+            // لا نسمح للصفحة بتحديد مكوّن صريح (component=) أو محدّد (selector=)
+            // — الوجهة تُحسم بالحزمة + الفعل + البيانات فقط، وأي مكوّن غير
+            // مُصدَّر في تطبيق آخر كان سيُرفض من النظام أصلًا، والتجريد يمنع
+            // محاولات استهداف مكوّنات مميّزة داخل التطبيقات.
+            component = null
+            selector = null
+        }
     } catch (e: Exception) {
         null
     }
@@ -295,9 +320,14 @@ class ExternalNavigationHandler(private val activity: AppCompatActivity) {
      * إشعار "لا يوجد تطبيق" الكامل (v1.3.0) — بدل Toast صامت:
      * حوار يعرض الرابط المطلوب وزر نسخه — فتظل الصفحة الحالية واضحة السبب
      * ولا تظهر "تسريب تحميل بلا تفسير".
+     * v1.8.0: عند توفر رابط احتياطي مسموح (S.browser_fallback_url) يُضاف زر
+     * «فتح الرابط في المتصفح» — نفس سلوك كروم عند غياب التطبيق المستهدف.
      */
-    private fun notifyNoApp(scheme: String, data: Uri?) {
+    private fun notifyNoApp(scheme: String, data: Uri?, fallbackUrl: String? = null) {
         val link = data?.toString()
+        val canOpenFallback = fallbackUrl != null &&
+            fallbackNavigator != null &&
+            fallbackValidator?.invoke(fallbackUrl) == true
         mainHandler.post {
             val message = if (link.isNullOrBlank()) {
                 activity.getString(R.string.toast_no_app)
@@ -309,10 +339,23 @@ class ExternalNavigationHandler(private val activity: AppCompatActivity) {
                 .setMessage(message)
                 .setPositiveButton(R.string.ok, null)
                 .apply {
+                    if (canOpenFallback) {
+                        setNeutralButton(R.string.external_open_fallback) { _, _ ->
+                            fallbackNavigator?.invoke(fallbackUrl!!)
+                        }
+                    }
                     if (!link.isNullOrBlank()) {
-                        setNeutralButton(R.string.external_copy_link) { _, _ ->
-                            copyToClipboard(link)
-                            toast(activity.getString(R.string.external_copied))
+                        // نسخ الرابط يبقى متاحًا دائمًا حتى مع زر الرابط الاحتياطي
+                        if (canOpenFallback) {
+                            setNegativeButton(R.string.external_copy_link) { _, _ ->
+                                copyToClipboard(link)
+                                toast(activity.getString(R.string.external_copied))
+                            }
+                        } else {
+                            setNeutralButton(R.string.external_copy_link) { _, _ ->
+                                copyToClipboard(link)
+                                toast(activity.getString(R.string.external_copied))
+                            }
                         }
                     }
                 }

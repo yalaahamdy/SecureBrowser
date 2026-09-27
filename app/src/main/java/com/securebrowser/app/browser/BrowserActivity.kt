@@ -25,6 +25,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -47,6 +48,8 @@ import com.securebrowser.app.security.SecurityEngine
 import com.securebrowser.app.security.model.BlockReason
 import com.securebrowser.app.security.model.NavigationDecision
 import com.securebrowser.app.security.model.NavigationType
+import android.graphics.Rect
+import android.os.Build
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -98,7 +101,17 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         binding = ActivityBrowserBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        externalHandler = ExternalNavigationHandler(this)
+        externalHandler = ExternalNavigationHandler(
+            this,
+            // v1.8.0 — زر «فتح الرابط في المتصفح» في حوار عدم وجود التطبيق:
+            // الرابط الاحتياطي يمر بالأمان كأي تنقل داخلي (SecurityEngine يقرر).
+            fallbackNavigator = { url ->
+                lifecycleScope.launch { navigateInternal(url, NavigationType.LINK) }
+            },
+            fallbackValidator = { url ->
+                securityEngine.validate(url, NavigationType.LINK) is NavigationDecision.Allow
+            }
+        )
 
         // الطبقات العلوية فوق الويب: صفحة البداية / شاشة الحظر / شاشة الخطأ
         startBinding = ViewStartPageBinding.inflate(layoutInflater)
@@ -231,6 +244,43 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             onForward = { navForward() }
         )
         updateSwipeEnabled()
+        // v1.8.0 — حجز شرائط الحواف من إيماءة النظام (Android 10+):
+        // بدون هذا كانت إيماءة التنقل الرأسية للنظام تستهلك السحب الجانبي
+        // قبل وصوله للتطبيق أصلًا (ACTION_CANCEL) فلا تعمل الإيماءة إطلاقًا.
+        binding.contentContainer.doOnLayout { applySystemGestureExclusion() }
+    }
+
+    /**
+     * v1.8.0 — استبعاد إيماءات النظام من شرائط الحواف اليسرى/اليمنى
+     * (setSystemGestureExclusionRects — Android 10+):
+     * شرط بعرض EDGE تقريبًا بطول مركزي 200dp (الحد الأقصى الذي يكرمه النظام
+     * لكل حافة) — كي تبقى إيماءة الرجوع/التقدم الخاصة بالتطبيق عاملة مع
+     * التنقل بالإيماءات، مع إبقاء أعلى/أسفل الشاشة للنظام.
+     * تُعاد عند كل تركيز للنافذة (توصية الدليل الرسمي) وتُلغى في ملء الشاشة.
+     */
+    private fun applySystemGestureExclusion() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val container = binding.contentContainer
+        if (fullscreenView != null) {
+            container.systemGestureExclusionRects = emptyList()
+            return
+        }
+        val w = container.width
+        val h = container.height
+        if (w <= 0 || h <= 0) return
+        val density = resources.displayMetrics.density
+        val strip = (GESTURE_EXCLUSION_WIDTH_DP * density).toInt()
+        val height = minOf(h, (GESTURE_EXCLUSION_MAX_HEIGHT_DP * density).toInt())
+        val top = ((h - height) / 2f).toInt()
+        container.systemGestureExclusionRects = listOf(
+            Rect(0, top, strip, top + height),
+            Rect(w - strip, top, w, top + height)
+        )
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applySystemGestureExclusion()
     }
 
     /** هل الإيماءات الجانبية مسموحة الآن؟ (باطلة في ملء الشاشة/بحث الصفحة/صفحة البداية) */
@@ -1166,5 +1216,9 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     companion object {
         const val EXTRA_OPEN_URL = "extra_open_url"
         private const val SUBFRAME_EXTERNAL_DEBOUNCE_MS = 2000L
+
+        /** v1.8.0 — أبعاد شرائط استبعاد إيماءة النظام (dp). */
+        private const val GESTURE_EXCLUSION_WIDTH_DP = 32
+        private const val GESTURE_EXCLUSION_MAX_HEIGHT_DP = 200
     }
 }

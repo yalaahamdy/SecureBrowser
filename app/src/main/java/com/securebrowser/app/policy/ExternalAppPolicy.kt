@@ -107,21 +107,30 @@ object ExternalAppPolicy {
     /** حزمة التطبيق المستهدفة من intent: (من معامل package=). */
     fun intentTargetPackage(intentUri: String): String? = intentParam(intentUri, "package")
 
+    /** مخطط الوجهة الداخلية من intent: (من معامل scheme=) — مثل vlc/rtsp/zenplayer. */
+    fun intentInnerScheme(intentUri: String): String? =
+        intentParam(intentUri, "scheme")?.substringBefore(':')?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
+
     /** نوع MIME المستهدف من intent: (من S.type= أو type=). */
     fun intentTargetMime(intentUri: String): String? =
         intentParam(intentUri, "S.type") ?: intentParam(intentUri, "type")
 
     /**
-     * هل هذا intent: يستهدف تشغيل وسائط في مشغل معروف؟
+     * هل هذا intent: يستهدف تشغيل وسائط في مشغل؟
      * - mime يبدأ بـ video/ أو audio/ صراحة، أو
-     * - الحزمة المستهدفة ضمن قائمة المشغلات المعروفة.
+     * - الحزمة المستهدفة ضمن قائمة المشغلات المعروفة، أو
+     * - v1.8.0: المخطط الداخلي (scheme=) مخطط مشغل وسائط معروف
+     *   (vlc/rtsp/mxplayer/...) حتى مع حزمة مجهولة — المنصات تستخدم
+     *   intent://…;scheme=vlc;package=مجهول لفتح أي مشغل مثبت.
      */
     fun isMediaIntent(intentUri: String): Boolean {
         val mime = intentTargetMime(intentUri)?.substringBefore(';')?.trim()?.lowercase()
         if (mime != null && (mime.startsWith("video/") || mime.startsWith("audio/"))) return true
         val pkg = intentTargetPackage(intentUri)?.lowercase()
         if (pkg != null && pkg in KNOWN_MEDIA_PLAYER_PACKAGES) return true
-        // الحزمة غير معروفة + mime غير محدد → ليست وسائط (fail-closed)
+        val innerScheme = intentInnerScheme(intentUri)
+        if (innerScheme != null && isMediaScheme(innerScheme)) return true
+        // الحزمة غير معروفة + mime غير محدد + مخطط داخلي غير وسائطي → ليست وسائط (fail-closed)
         return false
     }
 

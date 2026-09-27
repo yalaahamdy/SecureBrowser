@@ -306,6 +306,8 @@
     <string name="external_no_app_message">لا يوجد تطبيق على هذا الجهاز يستطيع فتح:\n%1$s</string>
     <string name="external_copy_link">نسخ الرابط</string>
     <string name="external_copied">تم نسخ الرابط</string>
+    <!-- v1.8.0 — الرابط الاحتياطي عند غياب التطبيق المستهدف -->
+    <string name="external_open_fallback">فتح الرابط في المتصفح</string>
     <string name="setup_btn">إنشاء الرمز</string>
     <string name="setup_error_short">يجب ألا يقل الرمز عن 4 أرقام</string>
     <string name="setup_error_digits">يُسمح بالأرقام فقط</string>

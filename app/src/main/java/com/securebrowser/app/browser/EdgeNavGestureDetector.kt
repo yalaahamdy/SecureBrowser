@@ -40,16 +40,22 @@ class BrowserSwipeRefresh @JvmOverloads constructor(
  * إيماءات التنقل من الحواف — البديل الاحترافي للشريط السفلي المحذوف (v1.6.0):
  *
  * - السحب الأفقي من الحافة اليسرى → **رجوع**، ومن اليمنى → **تقدم**
- *   (تنعكس الحافتان في التخطيط RTL ليطابق اتجاه القراءة).
+ *   (v1.8.0: **ثابتان بلا انعكاس RTL** — نفس سلوك كروم/سامسونج/إيدج:
+ *   كان الانعكاس يجعل سحبة اليسار = تقدم في العربية فلا يحدث شيء مع سجل
+ *   تقدم فارغ، والمستخدم معتاد أن الحافة اليسرى رجوع في كل متصفح والنظام).
  * - **مراقبة بلا استهلاك:** يُستدعى من dispatchTouchEvent للنشاط ويعيد دائمًا
  *   التحكم للسلسلة الأصلية — WebView يبقى تفاعليًا بالكامل (روابط، تمرير،
  *   تحديد نص، تكبير) لأننا لا نلتقط أي حدث أبدًا.
+ *   v1.8.0: حجز شرائط الحواف من إيماءة النظام يتم في BrowserActivity
+ *   (systemGestureExclusionRects) — بدونه كان النظام يستهلك السحب الجانبي
+ *   قبل وصوله للتطبيق على Android 10+ بالتنقل بالإيماءات.
  * - **قفل اتجاه:** بعد تجاوز ميل اللمس يُقفل الاتجاه (أفقي أم رأسي) — الميل
  *   الرأسي يلغي الإيماءة فورًا كي لا تتعارض مع تمرير الصفحة، والقفل يمنع
  *   الانقطاع الأوسط أثناء السحب المائل قليلًا.
  * - **مؤشر حي يتبع الإصبع:** دائرة بسهم يظهر بشفافية وحجم متدرجين مع نسبة
  *   التقدم، يتبع أفقيًا ورأسيًا ضمن حدود الحاوية، وينطلق النقل عند تجاوز
- *   مسافة الزناد فقط — وإلا عاد المؤشر مخفيًا بأنيميشن (سحب مُلغى).
+ *   مسافة الزناد فقط (64dp منذ v1.8.0 بدل 84 — زناد أسرع وأسهل) — وإلا عاد
+ *   المؤشر مخفيًا بأنيميشن (سحب مُلغى)، مع نبضة لمس حسية عند الإطلاق.
  */
 class EdgeNavGestureDetector(
     private val host: android.view.ViewGroup,
@@ -95,12 +101,14 @@ class EdgeNavGestureDetector(
         downY = ev.y
         lastProgress = 0f
 
-        val rtl = host.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+        // v1.8.0: ثابت بلا انعكاس RTL — الحافة اليسرى رجوع واليمنى تقدم دائمًا
+        // (سلوك كروم/سامسونج/إيدج الموحد؛ الانعكاس كان يجعل سحبة اليسار
+        // تقدمًا مع سجل تقدم فارغ فتبدو الإيماءة «معطلة» تمامًا)
         val fromLeft = ev.x <= edgeWidth
         val fromRight = ev.x >= host.width - edgeWidth
         side = when {
-            fromLeft -> if (rtl) SIDE_FORWARD else SIDE_BACK
-            fromRight -> if (rtl) SIDE_BACK else SIDE_FORWARD
+            fromLeft -> SIDE_BACK
+            fromRight -> SIDE_FORWARD
             else -> SIDE_NONE
         }
         if (side != SIDE_NONE) showIndicator(downY, 0f)
@@ -152,6 +160,8 @@ class EdgeNavGestureDetector(
         if (success) {
             reset()
             fired = true
+            // نبضة لمس حسية عند الإطلاق (v1.8.0) — إيجابية بلمس الواجهة
+            host.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
             animateLaunch()
             action()
         } else {
@@ -242,7 +252,7 @@ class EdgeNavGestureDetector(
 
     private fun updateIndicator(y: Float, progress: Float) {
         val box = indicator ?: return
-        // side محسوم مسبقًا في onDown بما يشمل انعكاس RTL — هنا تموضع فعلي فقط
+        // side محسوم في onDown (رجوع=يسار / تقدم=يمين دائمًا منذ v1.8.0) — تموضع فعلي فقط
         val margin = density * 6
         val maxFollowX = triggerDistance + indicatorSize / 2
         val followX = (lastProgress * maxFollowX).coerceAtMost(host.width / 2f)
@@ -290,9 +300,13 @@ class EdgeNavGestureDetector(
 
     private fun Context.dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    companion object {
-        private const val EDGE_WIDTH_DP = 26
-        private const val TRIGGER_DISTANCE_DP = 84
+    private companion object {
+        /** v1.8.0: 34dp بدل 26 — منطقة التقاط أوسع تطابقًا مع شريط استبعاد النظام. */
+        private const val EDGE_WIDTH_DP = 34
+
+        /** v1.8.0: 64dp بدل 84 — زناد أسرع (نصف عرض الشاشة تقريبًا في اليد الواحدة). */
+        private const val TRIGGER_DISTANCE_DP = 64
+
         private const val INDICATOR_SIZE_DP = 44
 
         private const val SIDE_NONE = 0

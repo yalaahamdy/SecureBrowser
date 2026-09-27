@@ -105,6 +105,40 @@ class ExternalAppPolicyMediaIntentTest {
         )
     }
 
+    // ————— v1.8.0 — المخطط الداخلي (scheme=) —————
+
+    @Test
+    fun `inner vlc scheme intent is media even with unknown package`() {
+        assertTrue(
+            ExternalAppPolicy.isMediaIntent(
+                "intent://stream#Intent;scheme=vlc;package=com.unknown.app;end"
+            )
+        )
+    }
+
+    @Test
+    fun `inner rtsp scheme intent is media`() {
+        assertTrue(
+            ExternalAppPolicy.isMediaIntent("intent://s#Intent;scheme=rtsp;end")
+        )
+    }
+
+    @Test
+    fun `inner web scheme intent is not media`() {
+        assertFalse(
+            ExternalAppPolicy.isMediaIntent(
+                "intent://x#Intent;scheme=https;package=com.android.browser;end"
+            )
+        )
+    }
+
+    @Test
+    fun `inner scheme extraction handles colon suffix and case`() {
+        assertEquals("vlc", ExternalAppPolicy.intentInnerScheme("intent://x#Intent;scheme=vlc:"))
+        assertEquals("rtsp", ExternalAppPolicy.intentInnerScheme("intent://x#Intent;scheme=RTSP"))
+        assertNull(ExternalAppPolicy.intentInnerScheme("intent://x#Intent;package=a.b;end"))
+    }
+
     // ————— isMediaScheme —————
 
     @Test

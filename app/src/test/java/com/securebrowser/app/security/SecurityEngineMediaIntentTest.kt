@@ -17,11 +17,16 @@ import org.junit.Test
  * اختبارات قرار مشغلات الوسائط في SecurityEngine (v1.2.0) — الإصلاح 3.
  *
  * الضوابط الأمنية:
- * - intent وسائطي (مشغل معروف) بلا fallback → OpenExternal عندما تكون البوابة مفعّلة.
+ * - intent وسائطي (مشغل معروف أو mime video/audio أو مخطط مشغل داخلي) بلا fallback
+ *   → OpenExternal عندما تكون بوابة المشغلات مفعّلة.
  * - نفس الـ intent مع بوابة "مشغلات الفيديو" معطلة → حظر (fail-closed).
- * - intent بحزمة مجهولة بلا fallback → حظر كما كان (لا تغيير).
- * - intent وسائطي مع fallback غير مسموح → OpenExternal (المشغل هو الوجهة الحقيقية).
- * - fallback المسموح ما زال يعطي OpenExternal لكل intent (السلوك القديم محفوظ).
+ * - **v1.8.0 — intent مثبّت بحزمة (`package=`) → OpenExternal دائمًا** (بوابة
+ *   التطبيقات الخارجية + التأكيد في المعالج): نفس مسار المخططات المخصصة
+ *   (zenplayer:// كانت تمر منذ v1.4.0) — يُصلح منصات تعليمية بمشغلات خاصة
+ *   (Zen Player...) كانت تُحظر فلا يحدث شيء.
+ * - fail-closed يبقى لـ intent **مجهول الوجهة تمامًا**: بلا حزمة + بلا وسائط
+ *   + fallback محظور أو معدوم → حظر.
+ * - fallback المسموح ما زال يعطي OpenExternal (السلوك القديم محفوظ).
  * - مخططات المشغلات (vlc/rtsp...) تُصنف EXTERNAL_APP، وأي مخطط تطبيق غير متميز
  *   يمر عبر البوابة (v1.4.0) — قائمة الممنوعات المتميزة (javascript/file/...) تبقى UNSAFE.
  */
@@ -93,24 +98,70 @@ class SecurityEngineMediaIntentTest {
         assertEquals(BlockReason.UNSAFE_SCHEME, (d as NavigationDecision.Block).reason)
     }
 
-    // ————— fail-closed يبقى لما ليس وسائطيًا —————
+    @Test
+    fun `inner media scheme intent opens through video players gate v1_8_0`() {
+        policyManager.videoPlayersEnabled = { true }
+        // v1.8.0: مخطط داخلي وسائطي (scheme=vlc) مع حزمة غير معروفة → وسائطي
+        val d = validate("intent://stream#Intent;scheme=vlc;package=com.unknown.app;end")
+        assertTrue("expected OpenExternal got $d", d is NavigationDecision.OpenExternal)
+    }
 
     @Test
-    fun `unknown package intent without fallback is still blocked`() {
-        policyManager.videoPlayersEnabled = { true }
+    fun `inner media scheme intent blocked when video players gate disabled v1_8_0`() {
+        policyManager.videoPlayersEnabled = { false }
+        val d = validate("intent://stream#Intent;scheme=vlc;package=com.unknown.app;end")
+        assertTrue("expected Block got $d", d is NavigationDecision.Block)
+    }
+
+    // ————— fail-closed يبقى لـ intent مجهول الوجهة تمامًا —————
+
+    @Test
+    fun `pinned package intent opens through external app gate v1_8_0`() {
+        // v1.8.0 — سيناريو المستخدم: منصة تعليمية بمشغلها الخاص (Zen Player)
+        // كانت تُحظر فشل-مغلق فلا يحدث شيء عند الضغط على «افتح في المشغل».
+        // الآن: وجهة معلنة (package=) → بوابة التطبيقات الخارجية + التأكيد.
         val d = validate("intent://x#Intent;package=com.unknown.app;end")
+        assertTrue("expected OpenExternal got $d", d is NavigationDecision.OpenExternal)
+    }
+
+    @Test
+    fun `pinned package intent with blocked fallback still opens v1_8_0`() {
+        // الوجهة الفعلية هي التطبيق المثبّت — fallback للمتصفحات الأخرى فقط
+        val d = validate(
+            "intent://x#Intent;scheme=https;package=com.android.browser;" +
+                "S.browser_fallback_url=https%3A%2F%2Fevil.com%2Fx;end"
+        )
+        assertTrue("expected OpenExternal got $d", d is NavigationDecision.OpenExternal)
+    }
+
+    @Test
+    fun `anonymous intent with blocked fallback stays blocked`() {
+        // بلا حزمة وبلا وسائط + fallback محظور → fail-closed كما كان
+        val d = validate(
+            "intent://x#Intent;scheme=https;" +
+                "S.browser_fallback_url=https%3A%2F%2Fevil.com%2Fx;end"
+        )
+        assertTrue("expected Block got $d", d is NavigationDecision.Block)
+    }
+
+    @Test
+    fun `anonymous intent without fallback stays blocked`() {
+        // بلا حزمة + بلا وسائط + بلا fallback → وجهة مجهولة تمامًا → حظر
+        val d = validate("intent://x#Intent;scheme=https;end")
         assertTrue("expected Block got $d", d is NavigationDecision.Block)
         assertEquals(BlockReason.UNSAFE_SCHEME, (d as NavigationDecision.Block).reason)
     }
 
     @Test
-    fun `non media intent with blocked fallback is still blocked`() {
+    fun `zen player scenario unknown package with store fallback opens v1_8_0`() {
         policyManager.videoPlayersEnabled = { true }
+        // الحالة الفعلية من التقرير: fallback لمتجر التطبيقات (غير مدرج بالقائمة)
+        // + حزمة مشغل غير معروفة — كان حظرًا صامتًا في مسار الإطارات الفرعية
         val d = validate(
-            "intent://x#Intent;scheme=https;package=com.android.browser;" +
-                "S.browser_fallback_url=https%3A%2F%2Fevil.com%2Fx;end"
+            "intent://play#Intent;scheme=https;package=com.zen.player.app;" +
+                "S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.zen.player.app;end"
         )
-        assertTrue("expected Block got $d", d is NavigationDecision.Block)
+        assertTrue("expected OpenExternal got $d", d is NavigationDecision.OpenExternal)
     }
 
     @Test

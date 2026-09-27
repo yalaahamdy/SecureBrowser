@@ -218,8 +218,20 @@ class WhiteListEngineTest {
         assertBlocked("file:///system/etc/hosts", BlockReason.UNSAFE_SCHEME)
 
     @Test
-    fun `blocked - intent scheme`() =
-        assertBlocked("intent://evil.com/#Intent;scheme=https;package=com.evil.app;end", BlockReason.UNSAFE_SCHEME)
+    fun `intent with pinned package opens through external app gate v1_8_0`() {
+        // v1.8.0: الوجهة معلنة (package=) → قرار OpenExternal عبر بوابة الوالدين
+        // (external_apps + تأكيد) — نفس مسار المخططات المخصصة؛ إطلاق تطبيق
+        // خارجي ليس إخراجًا من القائمة لأن القائمة تحكم محتوى الويب الداخلي.
+        val d = engine.validate(
+            "intent://evil.com/#Intent;scheme=https;package=com.evil.app;end",
+            NavigationType.LINK
+        )
+        assertTrue("expected OpenExternal got $d", d is NavigationDecision.OpenExternal)
+    }
+
+    @Test
+    fun `blocked - anonymous intent without destination`() =
+        assertBlocked("intent://evil.com/#Intent;scheme=https;end", BlockReason.UNSAFE_SCHEME)
 
     @Test
     fun `blocked - content and ws schemes`() {

@@ -306,6 +306,8 @@
     <string name="external_no_app_message">No app on this device can open:\n%1$s</string>
     <string name="external_copy_link">Copy link</string>
     <string name="external_copied">Link copied</string>
+    <!-- v1.8.0 — browser fallback for intents when the target app is missing -->
+    <string name="external_open_fallback">Open link in browser</string>
     <string name="setup_btn">Create PIN</string>
     <string name="setup_error_short">PIN must be at least 4 digits</string>
     <string name="setup_error_digits">Digits only</string>
