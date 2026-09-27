@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/mainColumn"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- ——— الشريط العلوي المدمج: رقاقة التبويبات + العنوان الذكي + معلومات الموقع ——— -->
+        <LinearLayout
+            android:id="@+id/appBar"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="?attr/colorPrimary"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tabsChip"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_chip"
+                android:clickable="true"
+                android:contentDescription="@string/cd_tabs"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="1"
+                android:textColor="@color/browserBarForeground"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_marginHorizontal="8dp"
+                android:layout_weight="1">
+
+                <EditText
+                    android:id="@+id/addressBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_address_bar"
+                    android:contentDescription="@string/address_hint"
+                    android:hint="@string/address_hint"
+                    android:imeOptions="actionGo"
+                    android:importantForAutofill="no"
+                    android:inputType="textUri"
+                    android:maxLines="1"
+                    android:paddingHorizontal="36dp"
+                    android:singleLine="true"
+                    android:textColor="@color/browserBarForeground"
+                    android:textColorHint="@color/addressBarHint"
+                    android:textSize="14sp" />
+
+                <ImageView
+                    android:id="@+id/btnSiteInfo"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:layout_marginStart="8dp"
+                    android:clickable="true"
+                    android:contentDescription="@string/site_info_title"
+                    android:focusable="true"
+                    android:src="@drawable/ic_shield_check"
+                    android:tint="@color/browserBarForeground" />
+            </FrameLayout>
+
+            <ImageButton
+                android:id="@+id/btnMenu"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cd_menu"
+                android:src="@drawable/ic_menu"
+                android:tint="@color/browserBarForeground" />
+        </LinearLayout>
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:indeterminate="false"
+            android:max="100"
+            android:progress="0"
+            android:visibility="gone" />
+
+        <!-- ——— المحتوى: الويب هو العنصر الأساسي في الشاشة ——— -->
+        <FrameLayout
+            android:id="@+id/contentContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <FrameLayout
+                android:id="@+id/webViewContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+        </FrameLayout>
+
+        <!-- ——— شريط البحث داخل الصفحة (Find in page) ——— -->
+        <LinearLayout
+            android:id="@+id/findBar"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="?attr/colorSurfaceVariant"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/findInput"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_address_bar"
+                android:backgroundTint="?attr/colorOutline"
+                android:hint="@string/find_hint"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1"
+                android:paddingHorizontal="12dp"
+                android:singleLine="true"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/findCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:minWidth="52dp"
+                android:gravity="center"
+                android:textSize="13sp"
+                tools:text="0/0"
+                xmlns:tools="http://schemas.android.com/tools" />
+
+            <ImageButton
+                android:id="@+id/btnFindPrev"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/find_prev"
+                android:rotation="90"
+                android:src="@drawable/ic_forward" />
+
+            <ImageButton
+                android:id="@+id/btnFindNext"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/find_next"
+                android:rotation="-90"
+                android:src="@drawable/ic_forward" />
+
+            <ImageButton
+                android:id="@+id/btnFindClose"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/close"
+                android:src="@drawable/ic_close" />
+        </LinearLayout>
+
+        <!-- ——— مؤشر الوصول المؤقت مع العد التنازلي (§8) ——— -->
+        <LinearLayout
+            android:id="@+id/tempBanner"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_banner_temp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_timer"
+                android:tint="@color/tempBannerForeground" />
+
+            <TextView
+                android:id="@+id/tempBannerTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:text="@string/temp_banner_label"
+                android:textColor="@color/tempBannerForeground"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tempBannerCountdown"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textColor="@color/tempBannerForeground"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTempEnd"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginStart="6dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="10dp"
+                android:text="@string/temp_end_now"
+                android:textColor="@color/tempBannerForeground"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- ——— الشريط السفلي: تنقل سريع بلا ازدحام ——— -->
+        <LinearLayout
+            android:id="@+id/bottomBar"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:background="?attr/colorPrimary"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cd_back"
+                android:src="@drawable/ic_back"
+                android:tint="@color/browserBarForeground" />
+
+            <ImageButton
+                android:id="@+id/btnForward"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cd_forward"
+                android:src="@drawable/ic_forward"
+                android:tint="@color/browserBarForeground" />
+
+            <ImageButton
+                android:id="@+id/btnHome"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/menu_home"
+                android:src="@drawable/ic_home"
+                android:tint="@color/browserBarForeground" />
+
+            <ImageButton
+                android:id="@+id/btnReload"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cd_reload"
+                android:src="@drawable/ic_reload"
+                android:tint="@color/browserBarForeground" />
+
+            <ImageButton
+                android:id="@+id/btnBottomMenu"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/cd_menu"
+                android:src="@drawable/ic_gear"
+                android:tint="@color/browserBarForeground" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- حاوية ملء الشاشة (فيديو HTML5) فوق كل شيء -->
+    <FrameLayout
+        android:id="@+id/fullscreenContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:visibility="gone" />
+</FrameLayout>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#0F1219</color>
+    <color name="onBackground">#E3E7EF</color>
+    <color name="colorPrimaryContainer">#24406F</color>
+    <color name="colorOnPrimaryContainer">#D6E4FF</color>
+    <color name="colorErrorContainer">#5C1A16</color>
+    <color name="onErrorContainer">#F9DEDC</color>
+    <color name="surfaceVariant">#1B212C</color>
+    <color name="tempBannerBackground">#3E341A</color>
+    <color name="tempBannerForeground">#F5D97E</color>
+</resources>

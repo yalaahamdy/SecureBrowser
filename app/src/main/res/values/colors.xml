@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- لوحة ألوان مُحسّنة: أزرق عميق هادئ يوحي بالأمان والثقة،
+         مع خلفية رمادية زرقاء ناعمة بدل الأبيض الصارم -->
+    <color name="colorPrimary">#1D4ED8</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorPrimaryContainer">#DCE7FF</color>
+    <color name="colorOnPrimaryContainer">#0E2A66</color>
+    <color name="colorSecondary">#0E7490</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+    <color name="colorError">#B3261E</color>
+    <color name="colorErrorContainer">#F9DEDC</color>
+    <color name="onErrorContainer">#410E0B</color>
+    <color name="background">#F4F6FB</color>
+    <color name="onBackground">#1A1D24</color>
+    <color name="surfaceVariant">#EDF1F8</color>
+    <color name="browserBarForeground">#FFFFFF</color>
+    <color name="addressBarBackground">#2EFFFFFF</color>
+    <color name="addressBarHint">#B3FFFFFF</color>
+    <color name="launcherBackground">#1D4ED8</color>
+    <color name="tempBannerBackground">#FFF3D0</color>
+    <color name="tempBannerForeground">#5F4100</color>
+    <color name="chipPending">#E8A400</color>
+    <color name="chipBlocked">#B3261E</color>
+    <color name="chipDone">#1E8E3E</color>
+</resources>

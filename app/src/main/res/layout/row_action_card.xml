@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="4dp"
+    android:background="@drawable/bg_section_card"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="68dp"
+    android:orientation="horizontal"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="12dp">
+
+    <!-- شارة أيقونة ناعمة — تعطي البطاقة هوية بصرية دون ازدحام -->
+    <FrameLayout
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:background="@drawable/bg_icon_badge">
+
+        <ImageView
+            android:id="@+id/cardIcon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_globe"
+            android:tint="?attr/colorPrimary" />
+    </FrameLayout>
+
+    <!-- العنوان والقيمة في سطرين مستقلين — لا تنافس على العرض
+         فينتهي قصّ النصوص العربية الطويلة على الشاشات الضيقة -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/cardTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="?attr/colorOnBackground"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/cardValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:alpha="0.68"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="?attr/colorOnBackground"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- سهم دخول — يعمل للاتجاهين RTL/LTR تلقائيًا -->
+    <ImageView
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:alpha="0.35"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_chevron_forward"
+        android:tint="?attr/colorOnBackground" />
+</LinearLayout>

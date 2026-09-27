@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    شاشة إنشاء رمز الوالدين (v1.5.0) — رأس الأيقونة المتدرجة أصبح جزءًا من
+    PinPadView نفسها (هوية موحدة مع بوابة الرمز وحوار التغيير)، فلا تكرار
+    لأيقونة مكشرة فوق اللوحة.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal">
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="36dp" />
+
+    <TextView
+        android:id="@+id/headerText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/setup_title"
+        android:textColor="?attr/colorOnBackground"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/subtitleText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginHorizontal="32dp"
+        android:gravity="center"
+        android:text="@string/setup_subtitle"
+        android:textColor="?attr/colorOnBackground"
+        android:alpha="0.7"
+        android:textSize="14sp" />
+
+    <com.securebrowser.app.ui.PinPadView
+        android:id="@+id/pinPad"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginHorizontal="20dp" />
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/footerText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginBottom="20dp"
+        android:gravity="center"
+        android:text="@string/setup_footer_note"
+        android:textColor="?attr/colorOnBackground"
+        android:alpha="0.45"
+        android:textSize="12sp" />
+</LinearLayout>

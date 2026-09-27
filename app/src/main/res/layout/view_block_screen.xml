@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorErrorContainer"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <ImageView
+        android:layout_width="84dp"
+        android:layout_height="84dp"
+        android:contentDescription="@string/block_title"
+        android:src="@drawable/ic_shield_block"
+        android:tint="?attr/colorOnErrorContainer" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/block_title"
+        android:textColor="?attr/colorOnErrorContainer"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:alpha="0.85"
+        android:gravity="center"
+        android:text="@string/block_message"
+        android:textColor="?attr/colorOnErrorContainer"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/blockedHost"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:alpha="0.6"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:textColor="?attr/colorOnErrorContainer"
+        android:textSize="13sp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBlockBack"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:text="@string/block_btn_back" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBlockPrevious"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/block_btn_previous" />
+    </LinearLayout>
+</LinearLayout>

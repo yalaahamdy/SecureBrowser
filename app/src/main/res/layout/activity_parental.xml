@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="?attr/colorPrimary"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/btnToolbarBack"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/cd_back"
+            android:src="@drawable/ic_back"
+            android:tint="@color/browserBarForeground" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/parental_dashboard_title"
+            android:textColor="@color/browserBarForeground"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnLockNow"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginEnd="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/parental_lock_now"
+            android:src="@drawable/ic_lock"
+            android:tint="@color/browserBarForeground" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="24dp">
+
+            <!-- حالة النظام بنظرة واحدة (§26) — بطاقة موحّدة واضحة -->
+            <LinearLayout
+                android:id="@+id/statusContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_section_card"
+                android:orientation="vertical"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp" />
+
+            <include
+                android:id="@+id/secSecurity"
+                layout="@layout/section_header" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="2dp">
+
+                <include
+                    android:id="@+id/cardWhitelist"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardAddWebsite"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardTempAccess"
+                    layout="@layout/row_action_card" />
+            </LinearLayout>
+
+            <include
+                android:id="@+id/secMonitoring"
+                layout="@layout/section_header" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="2dp">
+
+                <include
+                    android:id="@+id/cardHistory"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardBlocked"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardDownloads"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardRecent"
+                    layout="@layout/row_action_card" />
+            </LinearLayout>
+
+            <include
+                android:id="@+id/secBrowser"
+                layout="@layout/section_header" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="2dp">
+
+                <include
+                    android:id="@+id/cardTabsAndApps"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardChildAppearance"
+                    layout="@layout/row_action_card" />
+            </LinearLayout>
+
+            <include
+                android:id="@+id/secSecuritySettings"
+                layout="@layout/section_header" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="2dp">
+
+                <include
+                    android:id="@+id/cardSecuritySettings"
+                    layout="@layout/row_action_card" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="22dp"
+                android:gravity="center"
+                android:alpha="0.55"
+                android:text="@string/parental_footer"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

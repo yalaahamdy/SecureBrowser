@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">متصفح آمن</string>
+
+    <!-- شاشة الحظر (نص ثابت لا يتغير) -->
+    <string name="block_title">هذا الموقع غير متاح</string>
+    <string name="block_message">هذا الموقع غير موجود في قائمة المواقع المسموح بها.</string>
+    <string name="block_host_label">العنوان المحظور: %1$s</string>
+    <string name="block_btn_back">رجوع</string>
+    <string name="block_btn_previous">الصفحة السابقة</string>
+
+    <!-- شريط الأدوات -->
+    <string name="address_hint">ابحث أو أدخل عنوانًا</string>
+    <string name="cd_back">رجوع</string>
+    <string name="cd_forward">تقدم</string>
+    <string name="cd_reload">تحديث</string>
+    <string name="cd_menu">القائمة</string>
+    <string name="cd_tabs">التبويبات</string>
+
+    <!-- صفحة البداية -->
+    <string name="start_title">المواقع المسموحة</string>
+    <string name="start_subtitle">اختر موقعًا للبدء، أو أدخل عنوانًا في شريط العنوان</string>
+    <string name="start_empty">لا توجد مواقع في القائمة البيضاء بعد</string>
+
+    <!-- القائمة -->
+    <string name="menu_new_tab">تبويب جديد</string>
+    <string name="menu_close_tab">إغلاق التبويب</string>
+    <string name="menu_tabs">التبويبات</string>
+    <string name="menu_home">الرئيسية</string>
+    <string name="menu_history">سجل التصفح</string>
+    <string name="menu_parental">إدارة الوالدين</string>
+    <string name="menu_exit">خروج</string>
+    <string name="menu_find">بحث في الصفحة</string>
+    <string name="menu_share">مشاركة</string>
+    <string name="menu_downloads">التنزيلات</string>
+    <string name="menu_site_info">معلومات الموقع</string>
+    <string name="menu_add_whitelist">إضافة إلى القائمة البيضاء</string>
+    <string name="menu_settings">الإعدادات</string>
+    <string name="menu_zoom">التكبير</string>
+    <string name="menu_zoom_in">تكبير</string>
+    <string name="menu_zoom_out">تصغير</string>
+    <string name="menu_zoom_reset">إعادة الضبط</string>
+    <string name="menu_copy">نسخ الرابط</string>
+
+    <!-- الحوارات -->
+    <string name="tabs_title">التبويبات</string>
+    <string name="tabs_count_fmt">التبويبات (%1$d)</string>
+    <string name="tabs_active_badge">نشط</string>
+    <string name="cd_tab_preview">معاينة التبويب</string>
+    <string name="history_title">سجل التصفح</string>
+    <string name="history_empty">لا يوجد شيء مسجل بعد</string>
+    <string name="close">إغلاق</string>
+    <string name="cancel">إلغاء</string>
+    <string name="ok">موافق</string>
+    <string name="error_generic">حدث خطأ غير متوقع</string>
+    <string name="delete">حذف</string>
+    <string name="copied">تم النسخ</string>
+
+    <!-- بحث في الصفحة -->
+    <string name="find_hint">ابحث في الصفحة</string>
+    <string name="find_prev">السابق</string>
+    <string name="find_next">التالي</string>
+    <string name="find_count">%1$d/%2$d</string>
+
+    <!-- شاشة الخطأ -->
+    <string name="error_title">تعذر تحميل الصفحة</string>
+    <string name="error_subtitle_network">تحقق من اتصالك بالإنترنت ثم أعد المحاولة</string>
+    <string name="error_subtitle_timeout">استغرق تحميل الصفحة وقتًا أطول من المعتاد</string>
+    <string name="error_subtitle_ssl">تعذر إنشاء اتصال آمن مع هذا الموقع</string>
+    <string name="error_subtitle_server">الخادم أجاب بخطأ مؤقت</string>
+    <string name="error_retry">إعادة المحاولة</string>
+    <string name="error_details_show">التفاصيل</string>
+    <string name="error_details_hide">إخفاء التفاصيل</string>
+
+    <!-- معلومات الموقع -->
+    <string name="site_info_title">معلومات الموقع</string>
+    <string name="site_info_security">الاتصال</string>
+    <string name="site_info_https">مؤمَّن (HTTPS)</string>
+    <string name="site_info_http">غير مؤمَّن (HTTP)</string>
+    <string name="site_info_domain">النطاق</string>
+    <string name="site_info_whitelist">القائمة البيضاء</string>
+    <string name="site_info_allowed">مسموح</string>
+    <string name="site_info_not_allowed">غير مسموح</string>
+    <string name="site_info_rule">نوع القاعدة</string>
+    <string name="site_info_temp_access">وصول مؤقت</string>
+
+    <!-- القائمة البيضاء -->
+    <string name="add_whitelist_question">ما الذي تريد السماح به؟</string>
+    <string name="add_whitelist_site_only">هذا الموقع فقط (الصفحة الرئيسية)</string>
+    <string name="add_whitelist_all_paths">هذا الموقع وكل صفحاته</string>
+    <string name="add_whitelist_subdomains">الموقع + كل النطاقات الفرعية</string>
+    <string name="add_whitelist_done">تمت إضافة الموقع إلى القائمة البيضاء</string>
+    <string name="add_whitelist_error">تعذرت إضافة الموقع — تحقق من العنوان</string>
+    <string name="rule_type_domain">كل صفحات النطاق</string>
+    <string name="rule_type_subdomains">النطاق + النطاقات الفرعية</string>
+    <string name="rule_type_exact">الصفحة الرئيسية فقط</string>
+    <string name="rule_type_path">مسار محدد</string>
+
+    <!-- الوصول المؤقت -->
+    <string name="temp_banner_label">وصول مؤقت</string>
+    <string name="temp_end_now">إنهاء الآن</string>
+    <string name="temp_access_title">الوصول المؤقت</string>
+    <string name="temp_active_label">الوصول المؤقت نشط</string>
+    <string name="temp_active_hint">تصفح المواقع التي تريد إضافتها ثم أضفها من السجل. عند انتهاء الوقت يعود فرض القائمة البيضاء تلقائيًا.</string>
+    <string name="temp_setup_title">بدء نافذة وصول مؤقت</string>
+    <string name="temp_setup_hint">خلال هذه النافذة يمكنك زيارة المواقع التي تريد إضافتها. ينتهي الترخيص تلقائيًا عند انتهاء المدة.</string>
+    <string name="temp_custom_minutes">دقائق (مخصص)</string>
+    <string name="temp_start_btn">بدء الوصول المؤقت</string>
+    <string name="temp_minutes_short">%1$d د</string>
+    <string name="temp_hours_short">%1$d س</string>
+    <string name="temp_started">بدأ الوصول المؤقت — أضف المواقع من السجل بعد زيارتها</string>
+    <string name="temp_ended">انتهى الوصول المؤقت — القائمة البيضاء مفعّلة من جديد</string>
+
+    <!-- لوحة الوالدين -->
+    <string name="parental_dashboard_title">لوحة الوالدين</string>
+    <string name="parental_lock_now">قفل الآن</string>
+    <string name="parental_footer">القائمة البيضاء مفعّلة دائمًا ولا يمكن إيقافها من أي إعداد.</string>
+    <string name="parental_section_security">الأمان</string>
+    <string name="parental_section_monitoring">المراقبة</string>
+    <string name="parental_section_browser">المتصفح</string>
+    <string name="parental_section_settings">إعدادات الأمان</string>
+    <string name="status_whitelist">القائمة البيضاء</string>
+    <string name="status_temp_access">الوصول المؤقت</string>
+    <string name="status_history">السجل</string>
+    <string name="status_downloads">مراقبة التنزيلات</string>
+    <string name="status_external_apps">التطبيقات الخارجية</string>
+    <string name="status_apk">ملفات APK</string>
+    <string name="value_on">مفعّل</string>
+    <string name="value_off">متوقف</string>
+    <string name="value_allowed">مسموح</string>
+    <string name="value_blocked">محظور</string>
+    <string name="value_enabled">مُسجَّل دائمًا</string>
+    <string name="value_monitoring_on">المراقبة مفعّلة</string>
+    <string name="card_whitelist">القائمة البيضاء</string>
+    <string name="card_whitelist_sub">المواقع المسموح بها</string>
+    <string name="card_add_website">إضافة موقع</string>
+    <string name="card_add_website_sub">إضافة مباشرة أو عبر وصول مؤقت</string>
+    <string name="card_temp_access">الوصول المؤقت</string>
+    <string name="card_temp_access_sub">نافذة زمنية لإضافة مواقع جديدة</string>
+    <string name="card_history">السجل</string>
+    <string name="card_history_sub">إدارة سجل التصفح</string>
+    <string name="card_blocked">النشاط المحظور</string>
+    <string name="card_blocked_sub">كل محاولات الوصول المحظورة</string>
+    <string name="card_downloads">التنزيلات</string>
+    <string name="card_downloads_sub">مراقبة وموافقات التنزيل</string>
+    <string name="card_recent">النشاط الأخير</string>
+    <string name="card_recent_sub">خط زمني موحّد</string>
+    <string name="card_tabs_apps">التبويبات والتطبيقات والملفات</string>
+    <string name="card_tabs_apps_sub">سياسات التبويبات والتطبيقات الخارجية والوسائط</string>
+    <string name="card_child_appearance">مظهر الطفل</string>
+    <string name="card_child_appearance_sub">السمة واللغة ومحرك البحث والرئيسية</string>
+    <string name="card_security_settings">إعدادات الحماية</string>
+    <string name="card_security_settings_sub">الرمز والقفل والقواعد المتقدمة</string>
+
+    <!-- إضافة موقع -->
+    <string name="add_website_title">إضافة موقع للقائمة البيضاء</string>
+    <string name="add_website_hint">مثال: example.com</string>
+    <string name="add_website_btn">إضافة إلى القائمة البيضاء</string>
+    <string name="add_website_temp_hint">أو أضف موقعًا بزيارته أولًا عبر نافذة وصول مؤقت، ثم أضفه من السجل.</string>
+    <string name="add_website_temp_btn">الوصول المؤقت</string>
+
+    <!-- إعدادات الوالدين -->
+    <string name="parental_settings_title">إعدادات الحماية</string>
+    <string name="sec_password">الرمز</string>
+    <string name="sec_lock">القفل التلقائي</string>
+    <string name="sec_advanced">القواعد المتقدمة</string>
+    <string name="sec_data">البيانات</string>
+    <string name="card_change_pin">تغيير رمز الوالدين</string>
+    <string name="card_lock_timeout">مدة القفل التلقائي</string>
+    <string name="card_external_apps">التطبيقات الخارجية</string>
+    <string name="card_external_confirm">تأكيد فتح التطبيقات</string>
+    <string name="card_apk_policy">ملفات APK</string>
+    <string name="card_archive_policy">الأرشيفات (ZIP/RAR)</string>
+    <string name="card_unknown_policy">أنواع غير معروفة</string>
+    <string name="card_restore_session">استعادة جلسة التصفح</string>
+    <string name="card_media_autoplay">تشغيل الوسائط تلقائيًا</string>
+    <string name="card_video_players">مشغلات الفيديو الخارجية</string>
+    <string name="card_clear_history">مسح سجل التصفح</string>
+    <string name="card_clear_blocked">مسح النشاط المحظور</string>
+    <string name="confirm_clear_history">هل تريد مسح سجل التصفح بالكامل؟</string>
+    <string name="confirm_clear_blocked">هل تريد مسح النشاط المحظور بالكامل؟</string>
+    <string name="cleared">تم المسح</string>
+    <string name="pin_change_title">تغيير رمز الوالدين</string>
+    <string name="pin_current_hint">الرمز الحالي</string>
+    <string name="pin_new_hint">الرمز الجديد</string>
+    <string name="pin_changed">تم تغيير الرمز</string>
+    <string name="pin_change_wrong_current">الرمز الحالي غير صحيح</string>
+
+    <!-- إعدادات الطفل -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_note">الأمان والقائمة البيضاء والسجل وسياسات التنزيل تُدار من لوحة الوالدين فقط.</string>
+    <string name="card_theme">السمة</string>
+    <string name="card_language">اللغة</string>
+    <string name="card_search_engine">محرك البحث</string>
+    <string name="card_homepage">الصفحة الرئيسية</string>
+    <string name="card_default_zoom">التكبير الافتراضي</string>
+    <string name="theme_system">حسب النظام</string>
+    <string name="theme_light">فاتح</string>
+    <string name="theme_dark">داكن</string>
+    <string name="language_system">حسب النظام</string>
+    <string name="language_ar">العربية</string>
+    <string name="language_en">English</string>
+    <string name="engine_duckduckgo">DuckDuckGo</string>
+    <string name="engine_google">Google</string>
+    <string name="engine_bing">Bing</string>
+    <string name="homepage_start">صفحة البداية</string>
+    <string name="zoom_percent">%1$d%%</string>
+
+    <!-- السجل -->
+    <string name="recent_opened">فتح</string>
+    <string name="recent_blocked">حُظر</string>
+    <string name="recent_downloaded">نزّل</string>
+    <string name="recent_download_blocked">تنزيل محظور</string>
+
+    <!-- السجل -->
+    <string name="history_actions">إجراءات</string>
+    <string name="history_group_today">اليوم</string>
+    <string name="history_group_yesterday">أمس</string>
+    <string name="history_group_week">هذا الأسبوع</string>
+    <string name="history_group_older">أقدم</string>
+    <string name="history_open">فتح</string>
+    <string name="history_open_new_tab">فتح في تبويب جديد</string>
+    <string name="history_copy_url">نسخ الرابط</string>
+    <string name="history_share">مشاركة</string>
+    <string name="history_add_whitelist">إضافة إلى القائمة البيضاء</string>
+    <string name="history_site_info">معلومات الموقع</string>
+    <string name="history_temp_badge">وصول مؤقت</string>
+    <string name="history_deleted">تم الحذف</string>
+
+    <!-- النشاط المحظور -->
+    <string name="blocked_title">النشاط المحظور</string>
+    <string name="blocked_reason_not_whitelisted">محظور — غير موجود في القائمة البيضاء</string>
+    <string name="blocked_reason_unsafe_scheme">محظور — مخطط غير آمن</string>
+    <string name="blocked_reason_malformed">محظور — عنوان غير سليم</string>
+    <string name="blocked_reason_credentials">محظور — بيانات دخول مدمجة في العنوان</string>
+    <string name="blocked_reason_security_error">محظور — خطأ أمني</string>
+    <string name="blocked_reason_download_policy">محظور — سياسة التنزيلات</string>
+    <string name="blocked_reason_download_blocked">محظور — نوع ملف خطير</string>
+    <string name="blocked_reason_download_source">محظور — المصدر غير مسموح</string>
+    <string name="blocked_reason_external_disabled">محظور — التطبيقات الخارجية موقوفة</string>
+    <string name="blocked_reason_page_error">خطأ تحميل صفحة</string>
+    <string name="blocked_request_type">نوع الطلب: %1$s</string>
+
+    <!-- التنزيلات -->
+    <string name="downloads_title">التنزيلات</string>
+    <string name="state_downloading">جارٍ التنزيل</string>
+    <string name="state_completed">مكتمل</string>
+    <string name="state_paused">متوقف مؤقتًا</string>
+    <string name="state_failed">فشل</string>
+    <string name="state_blocked">محظور</string>
+    <string name="state_pending_approval">بانتظار الموافقة</string>
+    <string name="download_approve">موافقة</string>
+    <string name="download_reject">رفض</string>
+    <string name="download_pause">إيقاف مؤقت</string>
+    <string name="download_resume">استئناف</string>
+    <string name="download_retry">إعادة المحاولة</string>
+    <string name="download_open">فتح</string>
+    <string name="download_share">مشاركة</string>
+    <string name="download_location">موقع الملف</string>
+    <string name="download_source">المصدر: %1$s</string>
+    <string name="toast_download_needs_approval">التنزيل يحتاج موافقة الوالدين</string>
+    <string name="toast_external_apps_disabled">التطبيقات الخارجية موقوفة من إعدادات الوالدين</string>
+    <string name="toast_video_players_disabled">مشغلات الفيديو الخارجية موقوفة من إعدادات الوالدين</string>
+    <string name="toast_app_not_installed">%1$s غير مثبت</string>
+    <string name="size_bytes">%1$d بايت</string>
+    <string name="size_kb">%1$.1f ك.ب</string>
+    <string name="size_mb">%1$.1f م.ب</string>
+    <string name="size_gb">%1$.2f ج.ب</string>
+
+    <!-- التطبيقات الخارجية -->
+    <string name="external_confirm_title">فتح تطبيق خارجي</string>
+    <string name="external_confirm_message">فتح هذا الرابط في %1$s؟</string>
+    <string name="external_confirm_open">فتح التطبيق</string>
+    <string name="external_app_generic">تطبيق خارجي</string>
+    <string name="external_open_in_app">فتح في %1$s</string>
+
+    <!-- الرمز -->
+    <string name="pin_dialog_title">تحقق من رمز الوالدين</string>
+    <string name="parental_prompt">أدخل رمز الوالدين</string>
+    <string name="parental_wrong">الرمز غير صحيح</string>
+    <string name="parental_locked">محاولات خاطئة متكررة. أعد المحاولة بعد %1$d ثانية</string>
+
+    <!-- إنشاء الرمز -->
+    <string name="setup_title">إنشاء رمز الوالدين</string>
+    <string name="setup_subtitle">سيحمي هذا الرمز إعدادات الحماية. احتفظ به في مكان آمن؛ لا يمكن استعادته دون إعادة تهيئة الجهاز.</string>
+    <string name="setup_pin_hint">الرمز (4 أرقام على الأقل)</string>
+    <string name="setup_confirm_hint">تأكيد الرمز</string>
+
+    <!-- v1.3.0 — لوحة الرمز -->
+    <string name="pin_pad_confirm">تأكيد</string>
+    <string name="pin_pad_delete_desc">حذف الرقم الأخير</string>
+    <string name="pin_pad_subtitle_verify">أدخل رمز الوالدين للمتابعة</string>
+    <string name="pin_pad_attempts_left">بقي %1$d من المحاولات قبل القفل المؤقت</string>
+    <string name="pin_pad_too_short">الرمز يجب أن يكون 4 أرقام على الأقل</string>
+    <string name="pin_pad_step_current">أدخل الرمز الحالي</string>
+    <string name="pin_pad_step_new">اختر رمزًا جديدًا</string>
+    <string name="pin_pad_step_new_hint">من 4 إلى 12 رقمًا — أرقام فقط</string>
+    <string name="pin_pad_step_confirm_title">أعد إدخال الرمز الجديد</string>
+    <string name="pin_pad_step_confirm_hint">أعد إدخال الرمز نفسه (%1$d خانة) للتحقق</string>
+    <string name="pin_pad_reenter_note">ستعيد إدخاله للتأكيد</string>
+    <string name="pin_pad_confirm_mismatch">الرمزان غير متطابقين — أعد الاختيار</string>
+    <string name="setup_footer_note">لا يمكن استرجاع الرمز إذا نسيت — ستحتاج إلى مسح بيانات التطبيق</string>
+    <!-- v1.3.0 — تغذية التطبيقات الخارجية -->
+    <string name="external_opening">جارٍ فتح %1$s…</string>
+    <string name="external_no_app_title">تعذر فتح التطبيق الخارجي</string>
+    <string name="external_no_app_message">لا يوجد تطبيق على هذا الجهاز يستطيع فتح:\n%1$s</string>
+    <string name="external_copy_link">نسخ الرابط</string>
+    <string name="external_copied">تم نسخ الرابط</string>
+    <string name="setup_btn">إنشاء الرمز</string>
+    <string name="setup_error_short">يجب ألا يقل الرمز عن 4 أرقام</string>
+    <string name="setup_error_digits">يُسمح بالأرقام فقط</string>
+    <string name="setup_error_mismatch">الرمزان غير متطابقين</string>
+
+    <!-- اختيارات عامة -->
+    <string name="picker_minutes">%1$d دقائق</string>
+    <string name="picker_option_timeout">%1$d دقيقة</string>
+
+    <!-- تنبيهات -->
+    <string name="toast_download_started">بدأ تنزيل الملف</string>
+    <string name="toast_download_blocked">التنزيل غير مسموح من هذا المصدر</string>
+    <string name="toast_no_app">لا يوجد تطبيق مناسب لفتح هذا الرابط</string>
+    <string name="toast_cert_error">خطأ في شهادة الأمان. تم إيقاف التحميل.</string>
+    <string name="toast_tabs_limit">وصلت إلى الحد الأقصى من التبويبات</string>
+    <!-- Whitelist management (§22) -->
+    <string name="whitelist_search_hint">ابحث في المواقع المسموحة</string>
+    <string name="rule_edit_title">تعديل القاعدة: %1$s</string>
+    <string name="rule_edited">تم تحديث القاعدة</string>
+
+    <!-- v1.4.0 — فتح بالبصمة (اختياري للوالد) -->
+    <string name="pin_biometric_button">فتح بالبصمة</string>
+    <string name="pin_biometric_title">تحقق الوالدين</string>
+    <string name="pin_biometric_subtitle">المس مستشعر البصمة لفتح لوحة الوالدين</string>
+    <string name="pin_biometric_use_pin">استخدم الرمز بدلًا من ذلك</string>
+    <string name="card_biometric">فتح بالبصمة</string>
+    <string name="biometric_warning">أي بصمة مسجلة على هذا الجهاز ستستطيع فتح لوحة الوالدين. فعّل هذا الخيار فقط إذا كانت بصمتك أنت هي الوحيدة المسجلة على الجهاز.</string>
+    <string name="biometric_not_available">لا يوجد مستشعر بصمة أو بصمة مسجلة على هذا الجهاز</string>
+</resources>

@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Secure Browser</string>
+
+    <!-- Block screen (fixed copy) -->
+    <string name="block_title">This site is not available</string>
+    <string name="block_message">This site is not in the list of allowed websites.</string>
+    <string name="block_host_label">Blocked address: %1$s</string>
+    <string name="block_btn_back">Back</string>
+    <string name="block_btn_previous">Previous page</string>
+
+    <!-- Toolbar -->
+    <string name="address_hint">Search or enter address</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_forward">Forward</string>
+    <string name="cd_reload">Reload</string>
+    <string name="cd_menu">Menu</string>
+    <string name="cd_tabs">Tabs</string>
+
+    <!-- Start page -->
+    <string name="start_title">Allowed websites</string>
+    <string name="start_subtitle">Pick a site to start, or type an address in the bar</string>
+    <string name="start_empty">No websites in the whitelist yet</string>
+
+    <!-- Menu -->
+    <string name="menu_new_tab">New tab</string>
+    <string name="menu_close_tab">Close tab</string>
+    <string name="menu_tabs">Tabs</string>
+    <string name="menu_home">Home</string>
+    <string name="menu_history">Browsing history</string>
+    <string name="menu_parental">Parental management</string>
+    <string name="menu_exit">Exit</string>
+    <string name="menu_find">Find in page</string>
+    <string name="menu_share">Share</string>
+    <string name="menu_downloads">Downloads</string>
+    <string name="menu_site_info">Site information</string>
+    <string name="menu_add_whitelist">Add to whitelist</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_zoom">Zoom</string>
+    <string name="menu_zoom_in">Zoom in</string>
+    <string name="menu_zoom_out">Zoom out</string>
+    <string name="menu_zoom_reset">Reset zoom</string>
+    <string name="menu_copy">Copy URL</string>
+
+    <!-- Dialogs -->
+    <string name="tabs_title">Tabs</string>
+    <string name="tabs_count_fmt">Tabs (%1$d)</string>
+    <string name="tabs_active_badge">Active</string>
+    <string name="cd_tab_preview">Tab preview</string>
+    <string name="history_title">Browsing history</string>
+    <string name="history_empty">Nothing recorded yet</string>
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="error_generic">An unexpected error occurred</string>
+    <string name="delete">Delete</string>
+    <string name="copied">Copied</string>
+
+    <!-- Find in page -->
+    <string name="find_hint">Find in page</string>
+    <string name="find_prev">Previous</string>
+    <string name="find_next">Next</string>
+    <string name="find_count">%1$d/%2$d</string>
+
+    <!-- Error screen -->
+    <string name="error_title">Page failed to load</string>
+    <string name="error_subtitle_network">Check your internet connection and try again</string>
+    <string name="error_subtitle_timeout">The page took too long to load</string>
+    <string name="error_subtitle_ssl">A secure connection could not be established</string>
+    <string name="error_subtitle_server">The server returned a temporary error</string>
+    <string name="error_retry">Retry</string>
+    <string name="error_details_show">Details</string>
+    <string name="error_details_hide">Hide details</string>
+
+    <!-- Site info -->
+    <string name="site_info_title">Site information</string>
+    <string name="site_info_security">Connection</string>
+    <string name="site_info_https">Secure (HTTPS)</string>
+    <string name="site_info_http">Not secure (HTTP)</string>
+    <string name="site_info_domain">Domain</string>
+    <string name="site_info_whitelist">Whitelist</string>
+    <string name="site_info_allowed">Allowed</string>
+    <string name="site_info_not_allowed">Not allowed</string>
+    <string name="site_info_rule">Rule type</string>
+    <string name="site_info_temp_access">Temporary access</string>
+
+    <!-- Whitelist -->
+    <string name="add_whitelist_question">What do you want to allow?</string>
+    <string name="add_whitelist_site_only">This site only (home page)</string>
+    <string name="add_whitelist_all_paths">This site + all pages</string>
+    <string name="add_whitelist_subdomains">Site + all subdomains</string>
+    <string name="add_whitelist_done">Website added to the whitelist</string>
+    <string name="add_whitelist_error">Could not add website — check the address</string>
+    <string name="rule_type_domain">All pages of this domain</string>
+    <string name="rule_type_subdomains">Domain + subdomains</string>
+    <string name="rule_type_exact">Home page only</string>
+    <string name="rule_type_path">Specific path</string>
+
+    <!-- Temporary access -->
+    <string name="temp_banner_label">Temporary access</string>
+    <string name="temp_end_now">End now</string>
+    <string name="temp_access_title">Temporary access</string>
+    <string name="temp_active_label">Temporary access is active</string>
+    <string name="temp_active_hint">Browse the sites you want to add, then add them from History. When the timer ends, whitelist enforcement resumes automatically.</string>
+    <string name="temp_setup_title">Start a temporary access window</string>
+    <string name="temp_setup_hint">During this window you can visit the sites you want to add. The allowance ends automatically when the timer expires.</string>
+    <string name="temp_custom_minutes">Minutes (custom)</string>
+    <string name="temp_start_btn">Start temporary access</string>
+    <string name="temp_minutes_short">%1$dm</string>
+    <string name="temp_hours_short">%1$dh</string>
+    <string name="temp_started">Temporary access started — add sites from History after visiting them</string>
+    <string name="temp_ended">Temporary access ended — the whitelist is enforced again</string>
+
+    <!-- Parental dashboard -->
+    <string name="parental_dashboard_title">Parental dashboard</string>
+    <string name="parental_lock_now">Lock now</string>
+    <string name="parental_footer">The whitelist is always on and cannot be disabled from any setting.</string>
+    <string name="parental_section_security">Security</string>
+    <string name="parental_section_monitoring">Monitoring</string>
+    <string name="parental_section_browser">Browser</string>
+    <string name="parental_section_settings">Security settings</string>
+    <string name="status_whitelist">Whitelist</string>
+    <string name="status_temp_access">Temporary access</string>
+    <string name="status_history">History</string>
+    <string name="status_downloads">Download monitoring</string>
+    <string name="status_external_apps">External apps</string>
+    <string name="status_apk">APK files</string>
+    <string name="value_on">ON</string>
+    <string name="value_off">OFF</string>
+    <string name="value_allowed">Allowed</string>
+    <string name="value_blocked">Blocked</string>
+    <string name="value_enabled">Always recorded</string>
+    <string name="value_monitoring_on">Monitoring ON</string>
+    <string name="card_whitelist">Whitelist</string>
+    <string name="card_whitelist_sub">Allowed websites</string>
+    <string name="card_add_website">Add website</string>
+    <string name="card_add_website_sub">Direct add, or via temporary access</string>
+    <string name="card_temp_access">Temporary access</string>
+    <string name="card_temp_access_sub">A timed window to add new websites</string>
+    <string name="card_history">History</string>
+    <string name="card_history_sub">Manage browsing history</string>
+    <string name="card_blocked">Blocked activity</string>
+    <string name="card_blocked_sub">Every blocked access attempt</string>
+    <string name="card_downloads">Downloads</string>
+    <string name="card_downloads_sub">Download monitoring and approvals</string>
+    <string name="card_recent">Recent activity</string>
+    <string name="card_recent_sub">Unified timeline</string>
+    <string name="card_tabs_apps">Tabs, external apps &amp; files</string>
+    <string name="card_tabs_apps_sub">Tabs, external apps and media policies</string>
+    <string name="card_child_appearance">Child appearance</string>
+    <string name="card_child_appearance_sub">Theme, language, search engine, homepage</string>
+    <string name="card_security_settings">Security settings</string>
+    <string name="card_security_settings_sub">PIN, auto-lock, advanced rules</string>
+
+    <!-- Add website -->
+    <string name="add_website_title">Add website to whitelist</string>
+    <string name="add_website_hint">e.g. example.com</string>
+    <string name="add_website_btn">Add to whitelist</string>
+    <string name="add_website_temp_hint">Or add a website by visiting it first through a temporary access window, then adding it from History.</string>
+    <string name="add_website_temp_btn">Temporary access</string>
+
+    <!-- Parental settings -->
+    <string name="parental_settings_title">Security settings</string>
+    <string name="sec_password">PIN</string>
+    <string name="sec_lock">Automatic locking</string>
+    <string name="sec_advanced">Advanced rules</string>
+    <string name="sec_data">Data</string>
+    <string name="card_change_pin">Change parental PIN</string>
+    <string name="card_lock_timeout">Auto-lock timeout</string>
+    <string name="card_external_apps">External apps</string>
+    <string name="card_external_confirm">Confirm opening apps</string>
+    <string name="card_apk_policy">APK files</string>
+    <string name="card_archive_policy">Archives (ZIP/RAR)</string>
+    <string name="card_unknown_policy">Unknown file types</string>
+    <string name="card_restore_session">Restore browsing session</string>
+    <string name="card_media_autoplay">Autoplay media</string>
+    <string name="card_video_players">External video players</string>
+    <string name="card_clear_history">Clear browsing history</string>
+    <string name="card_clear_blocked">Clear blocked activity</string>
+    <string name="confirm_clear_history">Clear the entire browsing history?</string>
+    <string name="confirm_clear_blocked">Clear the entire blocked activity?</string>
+    <string name="cleared">Cleared</string>
+    <string name="pin_change_title">Change parental PIN</string>
+    <string name="pin_current_hint">Current PIN</string>
+    <string name="pin_new_hint">New PIN</string>
+    <string name="pin_changed">PIN changed</string>
+    <string name="pin_change_wrong_current">Current PIN is incorrect</string>
+
+    <!-- Child settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_note">Security, whitelist, history and download policies are managed from the parental dashboard only.</string>
+    <string name="card_theme">Theme</string>
+    <string name="card_language">Language</string>
+    <string name="card_search_engine">Search engine</string>
+    <string name="card_homepage">Home page</string>
+    <string name="card_default_zoom">Default zoom</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="language_system">Follow system</string>
+    <string name="language_ar">العربية</string>
+    <string name="language_en">English</string>
+    <string name="engine_duckduckgo">DuckDuckGo</string>
+    <string name="engine_google">Google</string>
+    <string name="engine_bing">Bing</string>
+    <string name="homepage_start">Start page</string>
+    <string name="zoom_percent">%1$d%%</string>
+
+    <!-- History -->
+    <string name="history_actions">Actions</string>
+    <string name="history_group_today">Today</string>
+    <string name="history_group_yesterday">Yesterday</string>
+    <string name="history_group_week">This week</string>
+    <string name="history_group_older">Older</string>
+    <string name="history_open">Open</string>
+    <string name="history_open_new_tab">Open in new tab</string>
+    <string name="history_copy_url">Copy URL</string>
+    <string name="history_share">Share</string>
+    <string name="history_add_whitelist">Add to whitelist</string>
+    <string name="history_site_info">Site information</string>
+    <string name="history_temp_badge">Temporary access</string>
+    <string name="history_deleted">Deleted</string>
+
+    <!-- Blocked activity -->
+    <string name="blocked_title">Blocked activity</string>
+    <string name="blocked_reason_not_whitelisted">Blocked — not in whitelist</string>
+    <string name="blocked_reason_unsafe_scheme">Blocked — unsafe scheme</string>
+    <string name="blocked_reason_malformed">Blocked — malformed address</string>
+    <string name="blocked_reason_credentials">Blocked — embedded credentials</string>
+    <string name="blocked_reason_security_error">Blocked — security error</string>
+    <string name="blocked_reason_download_policy">Blocked — download policy</string>
+    <string name="blocked_reason_download_blocked">Blocked — dangerous file type</string>
+    <string name="blocked_reason_download_source">Blocked — source not allowed</string>
+    <string name="blocked_reason_external_disabled">Blocked — external apps disabled</string>
+    <string name="blocked_reason_page_error">Page load error</string>
+    <string name="blocked_request_type">Request type: %1$s</string>
+
+    <!-- Recent activity -->
+    <string name="recent_opened">opened</string>
+    <string name="recent_blocked">blocked</string>
+    <string name="recent_downloaded">downloaded</string>
+    <string name="recent_download_blocked">download blocked</string>
+
+    <!-- Downloads -->
+    <string name="downloads_title">Downloads</string>
+    <string name="state_downloading">Downloading</string>
+    <string name="state_completed">Completed</string>
+    <string name="state_paused">Paused</string>
+    <string name="state_failed">Failed</string>
+    <string name="state_blocked">Blocked</string>
+    <string name="state_pending_approval">Requires approval</string>
+    <string name="download_approve">Approve</string>
+    <string name="download_reject">Reject</string>
+    <string name="download_pause">Pause</string>
+    <string name="download_resume">Resume</string>
+    <string name="download_retry">Retry</string>
+    <string name="download_open">Open</string>
+    <string name="download_share">Share</string>
+    <string name="download_location">File location</string>
+    <string name="download_source">Source: %1$s</string>
+    <string name="toast_download_needs_approval">Download requires parental approval</string>
+    <string name="toast_external_apps_disabled">External apps are disabled by parental settings</string>
+    <string name="toast_video_players_disabled">External video players are disabled by parental settings</string>
+    <string name="toast_app_not_installed">%1$s is not installed</string>
+    <string name="size_bytes">%1$d B</string>
+    <string name="size_kb">%1$.1f KB</string>
+    <string name="size_mb">%1$.1f MB</string>
+    <string name="size_gb">%1$.2f GB</string>
+
+    <!-- External apps -->
+    <string name="external_confirm_title">Open external app</string>
+    <string name="external_confirm_message">Open this link in %1$s?</string>
+    <string name="external_confirm_open">Open app</string>
+    <string name="external_app_generic">External app</string>
+    <string name="external_open_in_app">Open in %1$s</string>
+
+    <!-- PIN -->
+    <string name="pin_dialog_title">Verify parental PIN</string>
+    <string name="parental_prompt">Enter parental PIN</string>
+    <string name="parental_wrong">Wrong PIN</string>
+    <string name="parental_locked">Too many failed attempts. Try again in %1$d seconds</string>
+
+    <!-- PIN setup -->
+    <string name="setup_title">Create parental PIN</string>
+    <string name="setup_subtitle">This PIN protects parental settings. Keep it safe; it cannot be recovered without a device reset.</string>
+    <string name="setup_pin_hint">PIN (at least 4 digits)</string>
+    <string name="setup_confirm_hint">Confirm PIN</string>
+
+    <!-- v1.3.0 — PIN pad -->
+    <string name="pin_pad_confirm">Confirm</string>
+    <string name="pin_pad_delete_desc">Delete last digit</string>
+    <string name="pin_pad_subtitle_verify">Enter the parental PIN to continue</string>
+    <string name="pin_pad_attempts_left">%1$d attempts left before temporary lock</string>
+    <string name="pin_pad_too_short">PIN must be at least 4 digits</string>
+    <string name="pin_pad_step_current">Enter the current PIN</string>
+    <string name="pin_pad_step_new">Choose a new PIN</string>
+    <string name="pin_pad_step_new_hint">4 to 12 digits — numbers only</string>
+    <string name="pin_pad_step_confirm_title">Re-enter the new PIN</string>
+    <string name="pin_pad_step_confirm_hint">Re-enter the same PIN (%1$d digits) to verify</string>
+    <string name="pin_pad_reenter_note">You will re-enter it to confirm</string>
+    <string name="pin_pad_confirm_mismatch">PINs do not match — choose again</string>
+    <string name="setup_footer_note">The PIN cannot be recovered if forgotten — a full app data reset will be required</string>
+    <!-- v1.3.0 — external app feedback -->
+    <string name="external_opening">Opening %1$s…</string>
+    <string name="external_no_app_title">Could not open the external app</string>
+    <string name="external_no_app_message">No app on this device can open:\n%1$s</string>
+    <string name="external_copy_link">Copy link</string>
+    <string name="external_copied">Link copied</string>
+    <string name="setup_btn">Create PIN</string>
+    <string name="setup_error_short">PIN must be at least 4 digits</string>
+    <string name="setup_error_digits">Digits only</string>
+    <string name="setup_error_mismatch">PINs do not match</string>
+
+    <!-- Pickers -->
+    <string name="picker_minutes">%1$d minutes</string>
+    <string name="picker_option_timeout">%1$d min</string>
+
+    <!-- Toasts -->
+    <string name="toast_download_started">Download started</string>
+    <string name="toast_download_blocked">Download not allowed from this source</string>
+    <string name="toast_no_app">No suitable app to open this link</string>
+    <string name="toast_cert_error">Security certificate error. Loading stopped.</string>
+    <string name="toast_tabs_limit">Maximum number of tabs reached</string>
+    <!-- Whitelist management (§22) -->
+    <string name="whitelist_search_hint">Search allowed sites</string>
+    <string name="rule_edit_title">Edit rule: %1$s</string>
+    <string name="rule_edited">Rule updated</string>
+
+    <!-- v1.4.0 — biometric unlock (parent opt-in) -->
+    <string name="pin_biometric_button">Unlock with fingerprint</string>
+    <string name="pin_biometric_title">Parent verification</string>
+    <string name="pin_biometric_subtitle">Touch the sensor to unlock the parental panel</string>
+    <string name="pin_biometric_use_pin">Use PIN instead</string>
+    <string name="card_biometric">Fingerprint unlock</string>
+    <string name="biometric_warning">Any fingerprint enrolled on this device will be able to open the parental panel. Enable this only if YOUR fingerprint is the only one registered on the device.</string>
+    <string name="biometric_not_available">No fingerprint sensor or no enrolled fingerprint on this device</string>
+</resources>

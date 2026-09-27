@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="?attr/colorPrimary"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/btnToolbarBack"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/cd_back"
+            android:src="@drawable/ic_back"
+            android:tint="@color/browserBarForeground" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/parental_settings_title"
+            android:textColor="@color/browserBarForeground"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="24dp">
+
+            <include
+                android:id="@+id/secPassword"
+                layout="@layout/section_header" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="2dp">
+
+                <include
+                    android:id="@+id/cardChangePin"
+                    layout="@layout/row_action_card" />
+            </LinearLayout>
+
+            <include
+                android:id="@+id/secLock"
+                layout="@layout/section_header" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="2dp">
+
+                <include
+                    android:id="@+id/cardLockTimeout"
+                    layout="@layout/row_action_card" />
+            </LinearLayout>
+
+            <include
+                android:id="@+id/secAdvanced"
+                layout="@layout/section_header" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="2dp">
+
+                <include
+                    android:id="@+id/cardExternalApps"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardExternalConfirm"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardApkPolicy"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardArchivePolicy"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardUnknownPolicy"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardRestoreSession"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardMediaAutoplay"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardVideoPlayers"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardBiometric"
+                    layout="@layout/row_action_card" />
+            </LinearLayout>
+
+            <include
+                android:id="@+id/secData"
+                layout="@layout/section_header" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="2dp">
+
+                <include
+                    android:id="@+id/cardClearHistory"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardClearBlocked"
+                    layout="@layout/row_action_card" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
