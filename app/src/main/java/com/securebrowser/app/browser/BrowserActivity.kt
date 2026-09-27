@@ -29,6 +29,7 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.color.MaterialColors
 import com.securebrowser.app.R
 import com.securebrowser.app.core.url.AddressBarClassifier
 import com.securebrowser.app.core.url.NormalizeResult
@@ -87,6 +88,9 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     /** مانع إغراق تنقلات الإطارات الفرعية الخارجية (v1.2.0). */
     private var lastSubframeExternalAt = 0L
 
+    /** إيماءات الحواف (v1.6.0) — بديل الشريط السفلي المحذوف. */
+    private lateinit var edgeGestures: EdgeNavGestureDetector
+
     private val securityEngine get() = ServiceLocator.securityEngine
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -121,6 +125,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         tabsManager.onTabsChanged = { updateTabsChip() }
 
         setupToolbar()
+        setupGestures()
         setupOverlays()
         setupFindBar()
         setupBackHandling()
@@ -168,15 +173,11 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     // ————————————————— شريط الأدوات —————————————————
 
     private fun setupToolbar() {
-        binding.btnBack.setOnClickListener {
-            if (errorBinding.root.isVisible) hideErrorOverlay()
-            activeWebView()?.goBack()
-        }
-        binding.btnForward.setOnClickListener { activeWebView()?.goForward() }
-        binding.btnHome.setOnClickListener { onHomeRequested() }
-        binding.btnReload.setOnClickListener { performReload() }
+        // v1.6.0: حُذف ربط أزرار الشريط السفلي (btnBack/btnForward/btnHome/
+        // btnReload/btnBottomMenu) مع إزالة الشريط نفسه من التخطيط — بدائل:
+        // إعادة التحميل = سحب من الأعلى، رجوع/تقدم = سحب من الحواف،
+        // الرئيسية/القائمة = قائمة btnMenu العلوية (نفس الإجراءات كاملة).
         binding.btnMenu.setOnClickListener { showBrowserMenu() }
-        binding.btnBottomMenu.setOnClickListener { showBrowserMenu() }
         binding.tabsChip.setOnClickListener { showTabsSheet() }
         binding.btnSiteInfo.setOnClickListener { showSiteInfo() }
 
@@ -191,7 +192,8 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         }
         binding.addressBar.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                binding.addressBar.setText(currentTabState().url ?: "")
+                // يشمل الرابط المحجوب (attemptedUrl) إذا كانت شاشة الحظر معروضة
+                binding.addressBar.setText(currentTabUrl() ?: "")
                 binding.addressBar.selectAll()
             } else {
                 syncAddressBar()
@@ -199,10 +201,87 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         }
     }
 
+    // ————————————————— إيماءات v1.6.0: سحب للتحديث + حواف للتنقل —————————————————
+
+    private fun setupGestures() {
+        binding.swipeRefresh.setColorSchemeColors(
+            MaterialColors.getColor(
+                binding.root,
+                androidx.appcompat.R.attr.colorPrimary,
+                androidx.core.content.ContextCompat.getColor(this, android.R.color.black)
+            )
+        )
+        binding.swipeRefresh.setOnRefreshListener {
+            if (currentTabState().isStartPage) {
+                binding.swipeRefresh.isRefreshing = false
+                return@setOnRefreshListener
+            }
+            performReload()
+        }
+        // المفوّض يجعل السحب للتحديث يعمل فقط في أعلى الصفحة — الابن المباشر
+        // FrameLayout وسيط لا يعرف حالة تمرير WebView
+        binding.swipeRefresh.canScrollUpDelegate = {
+            activeWebView()?.canScrollVertically(-1) ?: false
+        }
+        edgeGestures = EdgeNavGestureDetector(
+            host = binding.contentContainer,
+            onBack = { navBack() },
+            onForward = { navForward() }
+        )
+        updateSwipeEnabled()
+    }
+
+    /** هل الإيماءات الجانبية مسموحة الآن؟ (باطلة في ملء الشاشة/بحث الصفحة/صفحة البداية) */
+    private val edgeGesturesAllowed: Boolean
+        get() = fullscreenView == null &&
+            !binding.findBar.isVisible &&
+            !startBinding.root.isVisible
+
+    /**
+     * v1.6.0: مراقبة أحداث اللمس لإيماءات الحواف **بلا استهلاك** — تعيد دائمًا
+     * التحكم للسلسلة الأصلية فيبقى WebView تفاعليًا بالكامل (نقر، تمرير، تحديد).
+     */
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (edgeGesturesAllowed) edgeGestures.observe(ev)
+        return super.dispatchTouchEvent(ev)
+    }
+
+    /** رجوع عبر إيماءة الحافة — نفس سلوك زر الرجوع القديم مع شاشة الحظر. */
+    private fun navBack() {
+        if (errorBinding.root.isVisible) hideErrorOverlay()
+        if (blockBinding.root.isVisible) {
+            hideBlockOverlay()
+            val wv = activeWebView()
+            if (wv?.canGoBack() == true) wv.goBack() else showStartPage()
+            return
+        }
+        activeWebView()?.goBack()
+    }
+
+    /** تقدم عبر إيماءة الحافة المقابلة. */
+    private fun navForward() {
+        activeWebView()?.goForward()
+    }
+
+    /**
+     * تفعيل السحب للتحديث فقط عندما تكون منطقة الويب هي المعروضة فعلاً —
+     * تُعطّل فوق صفحات البداية/الحظر/الخطأ حتى لا يلتقط السحب أحداثها.
+     */
+    private fun updateSwipeEnabled() {
+        binding.swipeRefresh.isEnabled =
+            !startBinding.root.isVisible &&
+            !blockBinding.root.isVisible &&
+            !errorBinding.root.isVisible
+    }
+
     private fun performReload() {
         hideErrorOverlay()
         val wv = activeWebView()
-        if (wv != null && !currentTabState().isStartPage) wv.reload()
+        if (wv != null && !currentTabState().isStartPage) {
+            wv.reload()
+        } else {
+            binding.swipeRefresh.isRefreshing = false
+        }
     }
 
     private fun onAddressSubmitted(raw: String) {
@@ -362,10 +441,30 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     }
 
     private fun showErrorBlockScreen(rawUrl: String?, hostOrDetail: String?) {
+        // v1.6.0 — لحظة الحظر هي لحظة مزامنة العنوان: كان الشريط يبقى على
+        // عنوان الصفحة السابقة لأن WebView لم يبدأ تحميل الرابط المحجوب أصلًا،
+        // فكانت «إضافة للقائمة البيضاء» تلتقط العنوان الخاطئ. الآن يُسجّل
+        // رابط المحاولة فورًا ويُعرض في الشريط ويُلتقط لكل المسارات.
+        if (!rawUrl.isNullOrBlank()) markAttemptedUrl(rawUrl)
+        binding.swipeRefresh.isRefreshing = false
         hideErrorOverlay()
-        blockBinding.blockedHost.isVisible = !hostOrDetail.isNullOrBlank()
-        blockBinding.blockedHost.text = hostOrDetail ?: ""
+        val label = listOfNotNull(
+            hostOrDetail?.takeIf { it.isNotBlank() },
+            rawUrl?.takeIf { it.isNotBlank() && it != hostOrDetail }
+        ).joinToString("\n")
+        blockBinding.blockedHost.isVisible = label.isNotBlank()
+        blockBinding.blockedHost.text = label
         blockBinding.root.isVisible = true
+        updateSwipeEnabled()
+    }
+
+    /**
+     * تسجيل رابط المحاولة على التبويب النشط وعرضه في شريط العنوان فورًا
+     * (v1.6.0 — جذر إصلاح مزامنة URL المحجوب).
+     */
+    private fun markAttemptedUrl(url: String) {
+        tabsManager.activeTab?.attemptedUrl = url
+        if (!binding.addressBar.hasFocus()) binding.addressBar.setText(url)
     }
 
     /** فتح من خارج النشاط (سجل/إجراءات) — مع تبويب جديد اختياري. */
@@ -398,6 +497,8 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         hideBlockOverlay()
         hideErrorOverlay()
         hideStartPage()
+        // بدأ تحميل صفحة حقيقية — رابط المحاولة المحجوب لم يعد ذا صلة
+        tabsManager.activeTab?.attemptedUrl = null
         val target = if (url.isWeb) url.canonical() else url.raw
         activeWebView()?.loadUrl(target)
     }
@@ -559,7 +660,10 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                 view.updateNavigationState()
                 binding.addressBar.setText(url)
                 binding.progressBar.isVisible = true
+                binding.swipeRefresh.isRefreshing = false
                 hideErrorOverlay()
+                // صفحة حقيقية بدأ تحميلها — امسح رابط المحاولة المحجوب
+                tabsManager.find(idForWebView(view))?.attemptedUrl = null
                 tabsManager.activeTab?.update { it.copy(isLoading = true, url = url) }
             }
         }
@@ -570,6 +674,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         runOnUiThread {
             view.updateNavigationState()
             binding.progressBar.isVisible = false
+            binding.swipeRefresh.isRefreshing = false
             syncAddressBar()
             tabsManager.activeTab?.update {
                 it.copy(isLoading = false, url = url ?: it.url, title = title ?: it.title)
@@ -650,10 +755,12 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         errorBinding.errorDetailsContainer.isVisible = false
         errorBinding.btnErrorDetails.setText(R.string.error_details_show)
         errorBinding.root.isVisible = true
+        updateSwipeEnabled()
     }
 
     private fun hideErrorOverlay() {
         if (errorBinding.root.isVisible) errorBinding.root.isVisible = false
+        updateSwipeEnabled()
     }
 
     private fun WebView.updateNavigationState() {
@@ -670,14 +777,22 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         tabsManager.tabs.firstOrNull { it.webView == webView }?.id ?: -1L
 
     /**
-     * مصدر الحقيقة لشريط العنوان: رابط WebView الحي أولًا (يعكس إعادة التوجيه
-     * وتنقلات pushState لحظيًا)، والحالة المحفوظة احتياطًا (صفحة بداية/تبويب لم يحمّل).
+     * مصدر الحقيقة لشريط العنوان (v1.6.0):
+     * 1. أثناء عرض شاشة الحظر: رابط المحاولة المحجوب (attemptedUrl) أولًا —
+     *    هذا ما يراه المستخدم أمامه فيجب أن يعكسه الشريط.
+     * 2. غير ذلك: رابط WebView الحي (يعكس إعادة التوجيه وتنقلات pushState
+     *    لحظيًا)، ثم الحالة المحفوظة احتياطًا (صفحة بداية/تبويب لم يحمّل).
      */
     private fun syncAddressBar() {
         if (binding.addressBar.hasFocus()) return
+        val attempted = tabsManager.activeTab?.attemptedUrl
         val live = activeWebView()?.url
         binding.addressBar.setText(
-            (live?.takeIf { it.isNotBlank() } ?: currentTabState().url).orEmpty()
+            when {
+                blockBinding.root.isVisible && !attempted.isNullOrBlank() -> attempted
+                !live.isNullOrBlank() -> live
+                else -> currentTabState().url
+            }.orEmpty()
         )
     }
 
@@ -693,6 +808,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
     private fun hideBlockOverlay() {
         blockBinding.root.isVisible = false
+        updateSwipeEnabled()
     }
 
     override fun recordBlockedNavigation(
@@ -724,7 +840,9 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         hideBlockOverlay()
         hideErrorOverlay()
         startBinding.root.isVisible = true
+        updateSwipeEnabled()
         tabsManager.activeTab?.update { it.copy(isStartPage = true) }
+        tabsManager.activeTab?.attemptedUrl = null
         activeWebView()?.let { it.stopLoading() }
         lifecycleScope.launch {
             val rules = ServiceLocator.whiteListRepository.currentRules().filter { it.enabled }
@@ -755,6 +873,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             startBinding.root.isVisible = false
             tabsManager.activeTab?.update { it.copy(isStartPage = false) }
         }
+        updateSwipeEnabled()
     }
 
     // ————————————————— بحث داخل الصفحة (§22) —————————————————
@@ -847,10 +966,18 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         Toast.makeText(this, R.string.copied, Toast.LENGTH_SHORT).show()
     }
 
-    fun currentTabUrl(): String? =
-        activeWebView()?.url?.takeIf { it.isNotBlank() }
+    fun currentTabUrl(): String? {
+        // v1.6.0: أثناء عرض شاشة الحظر يكون الرابط المعروض للمستخدم هو رابط
+        // المحاولة المحجوب — القائمة البيضاء ومعلومات الموقع والمشاركة تلتقطه
+        // بدل عنوان الصفحة السابقة الذي كان يُلتقط خطأً (جذر شكوى المزامنة).
+        if (blockBinding.root.isVisible) {
+            tabsManager.activeTab?.attemptedUrl?.takeIf { it.isNotBlank() }
+                ?.let { return it }
+        }
+        return activeWebView()?.url?.takeIf { it.isNotBlank() }
             ?: currentTabState().url
             ?: tabsManager.activeTab?.pendingRestoreUrl
+    }
 
     // ————————————————— ملء الشاشة الغامر (§16) —————————————————
 
@@ -946,6 +1073,11 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     }
 
     fun attachActiveTab() {
+        // تبديل التبويب يبدّل السياق: الطبقات المعروضة ورابط المحاولة تعود
+        // للتبويب الجديد — إخفاؤها ومسح الرابط يمنع عرض حظر/خطأ تبويب قديم
+        hideBlockOverlay()
+        hideErrorOverlay()
+        tabsManager.activeTab?.attemptedUrl = null
         binding.webViewContainer.removeAllViews()
         val tab = tabsManager.activeTab
         if (tab == null) {
@@ -964,6 +1096,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             lifecycleScope.launch { navigateInternal(pending, NavigationType.INITIAL) }
         }
         updateTabsChip()
+        syncAddressBar()
     }
 
     /** للحوارات بعد إغلاق/تبديل تبويب. */

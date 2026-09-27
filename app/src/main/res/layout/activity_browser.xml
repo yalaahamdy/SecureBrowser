@@ -89,17 +89,26 @@
             android:progress="0"
             android:visibility="gone" />
 
-        <!-- ——— المحتوى: الويب هو العنصر الأساسي في الشاشة ——— -->
+        <!-- ——— المحتوى: الويب هو العنصر الأساسي في الشاشة ———
+             v1.6.0: SwipeRefreshLayout للتحديث بالسحب من الأعلى (بديل زر إعادة التحميل)،
+             يعمل فقط عندما تكون الصفحة في أعلى تمرير (سلوك SwipeRefreshLayout الأصيل
+             مع الأبناء القابلين للتمرير مثل WebView). ——— -->
         <FrameLayout
             android:id="@+id/contentContainer"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <FrameLayout
-                android:id="@+id/webViewContainer"
+            <com.securebrowser.app.browser.BrowserSwipeRefresh
+                android:id="@+id/swipeRefresh"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent">
+
+                <FrameLayout
+                    android:id="@+id/webViewContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </com.securebrowser.app.browser.BrowserSwipeRefresh>
         </FrameLayout>
 
         <!-- ——— شريط البحث داخل الصفحة (Find in page) ——— -->
@@ -217,65 +226,12 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- ——— الشريط السفلي: تنقل سريع بلا ازدحام ——— -->
-        <LinearLayout
-            android:id="@+id/bottomBar"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:background="?attr/colorPrimary"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <ImageButton
-                android:id="@+id/btnBack"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/cd_back"
-                android:src="@drawable/ic_back"
-                android:tint="@color/browserBarForeground" />
-
-            <ImageButton
-                android:id="@+id/btnForward"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/cd_forward"
-                android:src="@drawable/ic_forward"
-                android:tint="@color/browserBarForeground" />
-
-            <ImageButton
-                android:id="@+id/btnHome"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/menu_home"
-                android:src="@drawable/ic_home"
-                android:tint="@color/browserBarForeground" />
-
-            <ImageButton
-                android:id="@+id/btnReload"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/cd_reload"
-                android:src="@drawable/ic_reload"
-                android:tint="@color/browserBarForeground" />
-
-            <ImageButton
-                android:id="@+id/btnBottomMenu"
-                android:layout_width="0dp"
-                android:layout_height="44dp"
-                android:layout_weight="1"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/cd_menu"
-                android:src="@drawable/ic_gear"
-                android:tint="@color/browserBarForeground" />
-        </LinearLayout>
+        <!-- ——— v1.6.0: أُزيل الشريط السفلي نهائيًا — كانت الأزرار (رجوع/تقدم/إعادة
+             تحميل/قائمة) تعيد إنتاج ما توفره إيماءات النظام والحوارات بالفعل وتستهلك
+             مساحة من الويب. البدائل الاحترافية: السحب من الأعلى = إعادة تحميل
+             (SwipeRefreshLayout)، والسحب من الحافة اليسرى/اليمنى = رجوع/تقدم
+             (EdgeNavGestureDetector بسهم يتبع الإصبع). القائمة عبر btnMenu أعلى
+             الشاشة، والرجوع النظامي عبر زر النظام. ——— -->
     </LinearLayout>
 
     <!-- حاوية ملء الشاشة (فيديو HTML5) فوق كل شيء -->
