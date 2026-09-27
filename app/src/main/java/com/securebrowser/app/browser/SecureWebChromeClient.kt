@@ -91,8 +91,20 @@ class SecureWebChromeClient(
         callback?.invoke(origin, false, false)
     }
 
+    /**
+     * v1.7.0 — صلاحية الوسائط المحمية (DRM/Widevine):
+     * مشغّلات المنصات التعليمية المحمية تطلب PermissionRequest بمعرّف
+     * RESOURCE_PROTECTED_MEDIA_ID قبل فك تشفير الفيديو — كان الرفض الصامت
+     * هنا يُسقط التشغيل بلا أي رسالة. الآن يُمنح هذا المعرّف وحده،
+     * وتظل الكاميرا/الميكروفون/بقية الصلاحيات مرفوضة كما في السياسة.
+     */
     override fun onPermissionRequest(request: PermissionRequest?) {
-        request?.deny()
+        val resources = request?.resources ?: return
+        if (resources.contains(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)) {
+            request.grant(arrayOf(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID))
+        } else {
+            request.deny()
+        }
     }
 
     // ——— حوارات JavaScript بأسلوب أصلي ———

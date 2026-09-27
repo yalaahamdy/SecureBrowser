@@ -334,4 +334,11 @@
     <string name="card_biometric">فتح بالبصمة</string>
     <string name="biometric_warning">أي بصمة مسجلة على هذا الجهاز ستستطيع فتح لوحة الوالدين. فعّل هذا الخيار فقط إذا كانت بصمتك أنت هي الوحيدة المسجلة على الجهاز.</string>
     <string name="biometric_not_available">لا يوجد مستشعر بصمة أو بصمة مسجلة على هذا الجهاز</string>
+
+    <!-- v1.7.0 — شبكة صفحة البداية وأيقونات المواقع وتحسين السجل والتنزيلات -->
+    <string name="start_sites_count">%1$d من المواقع المسموحة</string>
+    <string name="remove_site_title">إزالة من القائمة البيضاء؟</string>
+    <string name="remove_site_message">بعد الإزالة لن يمكن فتح %1$s من المتصفح بعد الآن.</string>
+    <string name="site_removed">أُزيل الموقع من القائمة البيضاء</string>
+    <string name="cd_site_icon">أيقونة الموقع</string>
 </resources>

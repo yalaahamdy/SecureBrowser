@@ -20,9 +20,17 @@ class HistoryRepository(private val dao: HistoryDao) {
         visitResult: String = "ALLOWED",
         timestamp: Long = System.currentTimeMillis()
     ) {
+        // v1.7.0 — منع التكرار عند المصدر: الزيارات المتقاربة لنفس الرابط
+        // (إعادة تحميل يدوية، تنقلات SPA الداخلية، استعادة الجلسة) تُدمج
+        // في زيارة واحدة خلال النافذة الزمنية — يبقى السجل بسيطًا وواضحًا
+        // دون فقدان أي معلومة حقيقية للوالد (الزيارات البعيدة تُسجّل كاملة).
+        val canonical = url.take(2048)
+        dao.lastVisitAt(canonical)?.let { last ->
+            if (timestamp - last in 0 until DEDUPE_WINDOW_MS) return
+        }
         dao.insert(
             HistoryEntity(
-                url = url.take(2048),
+                url = canonical,
                 title = title?.take(300),
                 host = host?.take(253),
                 timestamp = timestamp,
@@ -47,5 +55,8 @@ class HistoryRepository(private val dao: HistoryDao) {
     companion object {
         const val RESULT_ALLOWED = "ALLOWED"
         const val RESULT_TEMPORARY = "TEMPORARY"
+
+        /** v1.7.0: نافذة دمج الزيارات المتقاربة لنفس الرابط — 5 دقائق. */
+        private const val DEDUPE_WINDOW_MS = 5L * 60_000L
     }
 }

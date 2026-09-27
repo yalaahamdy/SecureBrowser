@@ -23,4 +23,12 @@
     <color name="chipPending">#E8A400</color>
     <color name="chipBlocked">#B3261E</color>
     <color name="chipDone">#1E8E3E</color>
+
+    <!-- v1.7.0 — ألوان بلاطات أنواع ملفات التنزيلات -->
+    <color name="fileVideo">#7C3AED</color>
+    <color name="fileAudio">#0E7490</color>
+    <color name="fileImage">#059669</color>
+    <color name="fileArchive">#B45309</color>
+    <color name="fileApk">#2E7D32</color>
+    <color name="fileDoc">#B3261E</color>
 </resources>

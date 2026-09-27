@@ -140,6 +140,14 @@ class RulesAdapter(
         val rule = rules[position]
         val ctx = holder.binding.root.context
         holder.binding.ruleHost.text = rule.host
+        holder.binding.ruleHost.textSize = 14f
+        // v1.7.0 — أيقونة الموقع الحقيقية بدل الدرع الثابت
+        val letter = com.securebrowser.app.ui.FaviconLoader.initialFor(rule.host)
+        holder.binding.ruleLetter.text = letter
+        com.securebrowser.app.ui.FaviconLoader.bind(
+            holder.binding.root, holder.binding.ruleIcon, holder.binding.ruleLetter,
+            rule.host, letter
+        )
         holder.binding.ruleTypeText.text = ruleTypeLabel(
             ctx,
             runCatching { com.securebrowser.app.security.whitelist.RuleType.valueOf(rule.ruleType) }

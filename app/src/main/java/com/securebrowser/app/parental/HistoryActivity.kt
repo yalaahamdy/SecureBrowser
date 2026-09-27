@@ -106,8 +106,13 @@ class GroupedHistoryAdapter(
                 val ctx = binding.root.context
                 val title = entry.title?.takeIf { it.isNotBlank() } ?: entry.host ?: entry.url
                 binding.historyTitle.text = title
-                binding.historyTile.text =
+                val letter =
                     (entry.host ?: title).trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+                binding.historyTile.text = letter
+                // v1.7.0 — أيقونة الموقع الحقيقية في سجل الوالدين
+                com.securebrowser.app.ui.FaviconLoader.bind(
+                    binding.root, binding.historyIcon, binding.historyTile, entry.host, letter
+                )
                 binding.historySubtitle.text =
                     android.text.format.DateFormat.format("HH:mm", entry.timestamp).toString() +
                         (if (entry.visitResult == com.securebrowser.app.data.repository.HistoryRepository.RESULT_TEMPORARY)

@@ -5,13 +5,18 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.color.MaterialColors
 import com.securebrowser.app.R
 import com.securebrowser.app.data.db.entity.HistoryEntity
 import com.securebrowser.app.data.repository.HistoryRepository
 import com.securebrowser.app.databinding.ItemHistoryRowBinding
+import com.securebrowser.app.databinding.ItemSiteCardBinding
 import com.securebrowser.app.databinding.ItemTabCardBinding
+import com.securebrowser.app.security.whitelist.WhiteListRule
+import com.securebrowser.app.ui.FaviconLoader
+import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -118,7 +123,23 @@ class TabsGridAdapter(
             b.tabPreview.isVisible = false
             b.tabFallback.isVisible = true
             b.tabPreview.setImageDrawable(null)
-            b.tabInitial.text = initialFor(state.url ?: tab.pendingRestoreUrl, title)
+            val host = initialHostOf(state.url ?: tab.pendingRestoreUrl)
+            b.tabInitial.text = (host ?: title).trim().firstOrNull()?.uppercaseChar()?.toString() ?: "S"
+            // v1.7.0 — أيقونة الموقع الحقيقية كبديل أنيق حتى تُلتقط أول معاينة
+            b.tabFavicon.tag = host
+            b.tabFavicon.isVisible = false
+            b.tabInitial.isVisible = true
+            if (!host.isNullOrBlank()) {
+                (ctx as? androidx.lifecycle.LifecycleOwner)?.lifecycleScope?.launch {
+                    val bmp = com.securebrowser.app.ui.FaviconLoader.load(ctx, host)
+                    if (b.tabFavicon.tag != host) return@launch
+                    if (bmp != null) {
+                        b.tabFavicon.isVisible = true
+                        b.tabFavicon.setImageBitmap(bmp)
+                        b.tabInitial.isVisible = false
+                    }
+                }
+            }
         }
 
         // تحديد احترافي للتبويب النشط: حد أزرق + ظل + شارة، والبقية هادئة
@@ -146,12 +167,11 @@ class TabsGridAdapter(
     private fun dp(context: android.content.Context, value: Int): Int =
         (value * context.resources.displayMetrics.density).toInt()
 
-    private fun initialFor(url: String?, title: String): String {
-        val host = url?.let {
-            val r = com.securebrowser.app.core.url.UrlNormalizer.normalize(it)
-            (r as? com.securebrowser.app.core.url.NormalizeResult.Success)?.url?.host
-        }
-        return (host ?: title).trim().firstOrNull()?.uppercaseChar()?.toString() ?: "S"
+    /** استخراج المضيف من رابط خام — للبديل الحرفي ولأيقونة الموقع. */
+    private fun initialHostOf(url: String?): String? {
+        url ?: return null
+        val r = com.securebrowser.app.core.url.UrlNormalizer.normalize(url)
+        return (r as? com.securebrowser.app.core.url.NormalizeResult.Success)?.url?.host
     }
 }
 
@@ -180,8 +200,13 @@ class HistoryRowAdapter(
         val ctx = holder.binding.root.context
         val title = entry.title?.takeIf { it.isNotBlank() } ?: entry.host ?: entry.url
         holder.binding.historyTitle.text = title
-        holder.binding.historyTile.text =
-            (entry.host ?: title).trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        val letter = (entry.host ?: title).trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+        holder.binding.historyTile.text = letter
+        // v1.7.0 — أيقونة الموقع الحقيقية بدل حرف البديل عند توفرها
+        FaviconLoader.bind(
+            holder.binding.root, holder.binding.historyIcon, holder.binding.historyTile,
+            entry.host, letter
+        )
 
         val relative = DateUtils.getRelativeTimeSpanString(
             entry.timestamp, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS
@@ -232,12 +257,23 @@ object HistoryGrouper {
         }
     }
 
-    /** يبني قائمة (ترويسة | عنصر) بترتيب الأحدث أولًا. */
+    /** يبني قائمة (ترويسة | عنصر) بترتيب الأحدث أولًا.
+     *
+     * v1.7.0 — منع التكرارات في العرض: الزيارات المتتالية لنفس الرابط
+     * (إعادة تحميل، تنقلات SPA، عودة من صفحة فرعية) تُدمج في صف واحد
+     * حتى لا يظهر السجل قائمة مكرّرة مملّة — الديمومة معالجة أيضًا عند
+     * التسجيل في [HistoryRepository] بنافذة زمنية.
+     */
     fun buildRows(
         entries: List<HistoryEntity>,
         headerFor: (Group) -> String
     ): List<Row> {
-        val groups = entries.groupBy { groupOf(it.timestamp) }
+        val deduped = mutableListOf<HistoryEntity>()
+        for (entry in entries) {
+            if (deduped.lastOrNull()?.url == entry.url) continue
+            deduped.add(entry)
+        }
+        val groups = deduped.groupBy { groupOf(it.timestamp) }
         val order = listOf(Group.TODAY, Group.YESTERDAY, Group.THIS_WEEK, Group.OLDER)
         val rows = mutableListOf<Row>()
         for (g in order) {
@@ -252,5 +288,34 @@ object HistoryGrouper {
     sealed class Row {
         class Header(val title: String) : Row()
         class Item(val entry: HistoryEntity) : Row()
+    }
+}
+
+/**
+ * شبكة مواقع صفحة البداية (v1.7.0) — بطاقة لكل موقع مسموح بأيقونة حقيقية
+ * (Favicon) بدل الأزرار النصية. ضغطة = فتح الموقع عبر بوابة الأمان،
+ * ضغطة طويلة = إزالة من القائمة (القرار والتنفيذ في BrowserActivity).
+ */
+class StartSitesAdapter(
+    private val rules: List<WhiteListRule>,
+    private val onOpen: (String) -> Unit,
+    private val onRemove: (WhiteListRule) -> Unit
+) : RecyclerView.Adapter<StartSitesAdapter.Holder>() {
+
+    class Holder(val binding: ItemSiteCardBinding) : RecyclerView.ViewHolder(binding.root)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
+        Holder(ItemSiteCardBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+
+    override fun getItemCount(): Int = rules.size
+
+    override fun onBindViewHolder(holder: Holder, position: Int) {
+        val rule = rules[position]
+        val b = holder.binding
+        b.siteHost.text = rule.host
+        b.siteLetter.text = FaviconLoader.initialFor(rule.host)
+        FaviconLoader.bind(b.root, b.siteIcon, b.siteLetter, rule.host, FaviconLoader.initialFor(rule.host))
+        b.root.setOnClickListener { onOpen(rule.host) }
+        b.root.setOnLongClickListener { onRemove(rule); true }
     }
 }

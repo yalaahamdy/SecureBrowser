@@ -34,8 +34,15 @@ object SecureWebViewFactory {
 
         applyHardenedSettings(webView)
 
-        // كوكيز: بدون أطراف ثالثة
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
+        // v1.7.0 — كوكيز الأطراف الثالثة: مشغّلات الفيديو التعليمية توزّع جلسات
+        // التشغيل/التوكن على نطاقات CDN مستقلة (مثل *.googlevideo.com و *.akamaihd.net)
+        // فتفشل المصادقة بلا كوكيز الطرف الثالث. قرار الأمان لا يتأثر: مسار التنقل
+        // يظل محكومًا بالكامل عبر SecurityEngine — الكوكيز لا تفتح أي نطاق جديد.
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+
+        // v1.7.0 — أولوية عارض التبويب: مهم عند الظهور، معفى عند الغياب —
+        // يمنع قتل/تجميد مشغّل الفيديو منتصف التشغيل على الأجهزة ضغيرة الذاكرة
+        webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
 
         // العملاء المؤمّنون — كل التنقلات تمر عبر SecurityEngine
         webView.webViewClient = SecureWebViewClient(tabId, controller)
@@ -63,6 +70,12 @@ object SecureWebViewFactory {
             builtInZoomControls = true
             displayZoomControls = false
             mediaPlaybackRequiresUserGesture = !ServiceLocator.settingsRepository.mediaAutoplay
+
+            // v1.7.0 — هويّة كروم الحقيقية: بعض المنصات التعليمية تمنع تشغيل
+            // فيديوهاتها على «متصفحات غير معروفة» بالكشف عن وسمي WebView
+            // (»; wv« في الـ UA و»Version/4.0«) — إزالتهما يجعل الهوية مطابقة
+            // لكروم أندرويد على الجهاز نفسه بلا تزوير أي أرقام إصدار.
+            userAgentString = chromeLikeUserAgent(webView.context)
             // السماح لـ JS بطلب النوافذ — الاعتراض الأمني وحده هو الحاجز:
             // كل نافذة (بإيماءة أو بلاها) تمر عبر onCreateWindow → SecurityEngine.
             // تعطيل هذا يسقط window.open غير الإيمائي (فتح ملفات/طباعة/تسجيل
@@ -73,7 +86,11 @@ object SecureWebViewFactory {
             // أمان
             allowFileAccess = false
             allowContentAccess = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            // v1.7.0 — وضع التوافق للمحتوى المختلط: بدل الحظر الشامل (NEVER_ALLOW)
+            // الذي كان يكسر مشغّلات الفيديو على CDN غير مشفّر داخل صفحات https،
+            // يطابق سلوك كروم: الوسائط السلبية (فيديو/صوت/صور) تُسمح وتُرقّى
+            // تلقائيًا متى أمكن، بينما تبقى السكربتات النشطة محظورة.
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             safeBrowsingEnabled = true
             setGeolocationEnabled(false)
             cacheMode = WebSettings.LOAD_DEFAULT
@@ -82,6 +99,17 @@ object SecureWebViewFactory {
             textZoom = ServiceLocator.settingsRepository.zoom
         }
     }
+
+    /**
+     * v1.7.0 — هويّة متصفح كاملة: تُزال وسمي WebView فقط من الـ UA الافتراضي
+     * ليطابق User-Agent كروم أندرويد على الجهاز نفسه (نفس رقم Chromium،
+     * نفس إصدار أندرويد، نفس طراز الجهاز) — تخطي احترافي لفلاتر
+     * «متصفح غير مدعوم» دون إفساد أي شيء آخر.
+     */
+    private fun chromeLikeUserAgent(context: Context): String =
+        WebSettings.getDefaultUserAgent(context)
+            .replace(Regex(""";\s*wv(?=\s*[)])"""), "")
+            .replace(Regex("""\bVersion/\d+(\.\d+)+\s"""), "")
 
     /**
      * ربط مستمع التنزيلات (سياسة كاملة عبر BrowserDownloadManager).

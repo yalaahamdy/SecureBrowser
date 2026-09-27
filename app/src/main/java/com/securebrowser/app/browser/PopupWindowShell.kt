@@ -150,7 +150,8 @@ class PopupWindowShell(
         )
         isFocusableInTouchMode = true
         SecureWebViewFactory.applyHardenedSettings(this)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+        // v1.7.0 — توحيد سياسة الكوكيز مع التبويبات العادية (مصادقة CDN الفيديو)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         webChromeClient = provisionalChromeClient
         webViewClient = provisionalClient
     }

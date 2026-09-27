@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    صف تنزيل (v1.7.0 — إعادة تصميم): بلاطة ملوّنة بأيقونة نوع الملف
+    (فيديو/صوت/صورة/أرشيف/APK/مستند) + اسم الملف + شارة حالة ملوّنة
+    + وضوح (حجم • وقت • المصدر) + شريط تقدم.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
     android:orientation="vertical"
     android:paddingHorizontal="14dp"
     android:paddingVertical="10dp">
@@ -12,63 +18,70 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <ImageView
-            android:id="@+id/downloadIcon"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:importantForAccessibility="no"
-            android:src="@drawable/ic_download"
-            android:tint="?attr/colorPrimary" />
+        <FrameLayout
+            android:id="@+id/downloadTile"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:background="@drawable/bg_icon_round">
 
-        <TextView
-            android:id="@+id/downloadName"
+            <ImageView
+                android:id="@+id/downloadTypeIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_download" />
+        </FrameLayout>
+
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:layout_weight="1"
-            android:ellipsize="middle"
-            android:maxLines="1"
-            android:textColor="?attr/colorOnBackground"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/downloadName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="middle"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnBackground"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/downloadMeta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:alpha="0.65"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="?attr/colorOnBackground"
+                android:textSize="12sp" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/downloadState"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
+            android:background="@drawable/bg_pill"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="?attr/colorPrimary"
-            android:textSize="12sp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textColor="@android:color/white"
+            android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/downloadMeta"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="34dp"
-        android:layout_marginTop="2dp"
-        android:alpha="0.65"
-        android:ellipsize="end"
-        android:maxLines="2"
-        android:textColor="?attr/colorOnBackground"
-        android:textSize="12sp" />
 
     <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/downloadProgress"
         android:layout_width="match_parent"
         android:layout_height="4dp"
-        android:layout_marginStart="34dp"
+        android:layout_marginStart="58dp"
         android:layout_marginTop="6dp"
         android:max="100" />
-
-    <LinearLayout
-        android:id="@+id/downloadActions"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="26dp"
-        android:layout_marginTop="4dp"
-        android:orientation="horizontal" />
 </LinearLayout>

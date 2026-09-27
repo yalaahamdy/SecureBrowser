@@ -106,6 +106,8 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             startBinding.root, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         )
         startBinding.root.isVisible = false
+        // v1.7.0 — شبكة بطاقات المواقع المسموحة (3 أعمدة)
+        startBinding.sitesGrid.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
 
         blockBinding = ViewBlockScreenBinding.inflate(layoutInflater)
         binding.contentContainer.addView(
@@ -846,26 +848,41 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         activeWebView()?.let { it.stopLoading() }
         lifecycleScope.launch {
             val rules = ServiceLocator.whiteListRepository.currentRules().filter { it.enabled }
-            startBinding.linksContainer.removeAllViews()
+            // v1.7.0 — شبكة مواقع احترافية بأيقونات حقيقية بدل أزرار نصية
+            startBinding.sitesCount.text = getString(R.string.start_sites_count, rules.size)
             startBinding.emptyMessage.isVisible = rules.isEmpty()
-            for (rule in rules) {
-                val row = com.google.android.material.button.MaterialButton(
-                    this@BrowserActivity,
-                    null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle
-                ).apply {
-                    text = rule.host
-                    isAllCaps = false
-                    setOnClickListener {
-                        lifecycleScope.launch {
-                            ServiceLocator.whiteListEngine.refresh()
-                            navigateInternal("https://${rule.host}", NavigationType.INITIAL)
-                        }
+            startBinding.sitesGrid.isVisible = rules.isNotEmpty()
+            startBinding.sitesGrid.adapter = StartSitesAdapter(
+                rules,
+                onOpen = { host ->
+                    lifecycleScope.launch {
+                        ServiceLocator.whiteListEngine.refresh()
+                        navigateInternal("https://$host", NavigationType.INITIAL)
                     }
-                }
-                startBinding.linksContainer.addView(row)
-            }
+                },
+                onRemove = { rule -> confirmRemoveSite(rule) }
+            )
         }
+    }
+
+    /**
+     * v1.7.0 — إزالة موقع من صفحة البداية (ضغطة طويلة على البطاقة):
+     * تأكيد صريح ثم حذف القاعدة وتحديث المحرك وإعادة رسم الصفحة.
+     */
+    private fun confirmRemoveSite(rule: com.securebrowser.app.security.whitelist.WhiteListRule) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.remove_site_title))
+            .setMessage(getString(R.string.remove_site_message, rule.host))
+            .setPositiveButton(R.string.delete) { _, _ ->
+                lifecycleScope.launch {
+                    ServiceLocator.whiteListRepository.delete(rule)
+                    ServiceLocator.whiteListEngine.refresh()
+                    Toast.makeText(this@BrowserActivity, R.string.site_removed, Toast.LENGTH_SHORT).show()
+                    showStartPage()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun hideStartPage() {

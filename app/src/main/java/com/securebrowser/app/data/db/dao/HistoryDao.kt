@@ -12,6 +12,10 @@ interface HistoryDao {
     @Insert
     suspend fun insert(entry: HistoryEntity): Long
 
+    /** v1.7.0 — آخر زيارة لنفس الرابط (لنافذة دمج التكرارات عند التسجيل). */
+    @Query("SELECT timestamp FROM history WHERE url = :url ORDER BY timestamp DESC LIMIT 1")
+    suspend fun lastVisitAt(url: String): Long?
+
     @Query("SELECT * FROM history ORDER BY timestamp DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<HistoryEntity>
 

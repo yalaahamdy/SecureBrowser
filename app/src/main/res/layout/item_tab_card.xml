@@ -53,6 +53,14 @@
                     android:textColor="?attr/colorPrimary"
                     android:textSize="42sp"
                     android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/tabFavicon"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:contentDescription="@string/cd_site_icon"
+                    android:scaleType="fitCenter"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <LinearLayout

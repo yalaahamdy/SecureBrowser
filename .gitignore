@@ -6,4 +6,5 @@
 build/
 */build/
 .externalNativeBuild
+.cxx
 *.apk

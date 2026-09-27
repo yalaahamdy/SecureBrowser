@@ -334,4 +334,11 @@
     <string name="card_biometric">Fingerprint unlock</string>
     <string name="biometric_warning">Any fingerprint enrolled on this device will be able to open the parental panel. Enable this only if YOUR fingerprint is the only one registered on the device.</string>
     <string name="biometric_not_available">No fingerprint sensor or no enrolled fingerprint on this device</string>
+
+    <!-- v1.7.0 — start page grid, site icons, history & downloads polish -->
+    <string name="start_sites_count">%1$d allowed sites</string>
+    <string name="remove_site_title">Remove from whitelist?</string>
+    <string name="remove_site_message">After removal, %1$s will no longer be openable from the browser.</string>
+    <string name="site_removed">Website removed from the whitelist</string>
+    <string name="cd_site_icon">Website icon</string>
 </resources>
