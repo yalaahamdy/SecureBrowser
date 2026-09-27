@@ -343,4 +343,61 @@
     <string name="remove_site_message">بعد الإزالة لن يمكن فتح %1$s من المتصفح بعد الآن.</string>
     <string name="site_removed">أُزيل الموقع من القائمة البيضاء</string>
     <string name="cd_site_icon">أيقونة الموقع</string>
+
+    <!-- v1.9.0 — قارئ QR المدمج (روابط ونصوص بحث) -->
+    <string name="menu_scan_qr">مسح رمز QR</string>
+    <string name="cd_qr_scan">مسح رمز QR</string>
+    <string name="qr_title">مسح رمز QR</string>
+    <string name="qr_hint">وجّه الكاميرا نحو رمز QR داخل الإطار</string>
+    <string name="qr_camera_rationale">تحتاج صلاحية الكاميرا لمسح رموز QR. تُستخدم الكاميرا للمسح فقط — لا يُصوَّر ولا يُخزَّن أي شيء.</string>
+    <string name="qr_grant_permission">منح الصلاحية</string>
+    <string name="qr_torch">الفلاش</string>
+    <string name="qr_type_link">رابط موقع</string>
+    <string name="qr_type_text">نص</string>
+    <string name="qr_action_open">فتح الرابط</string>
+    <string name="qr_action_search">البحث عن النص</string>
+    <string name="qr_action_copy">نسخ</string>
+    <string name="qr_action_rescan">متابعة المسح</string>
+    <string name="qr_camera_failed">تعذر تشغيل الكاميرا</string>
+
+    <!-- v1.9.0 — الروابط المحلية على الشبكة دون قائمة بيضاء -->
+    <string name="card_local_network">الروابط المحلية على الشبكة</string>
+
+    <!-- v1.9.0 — النسخ الاحتياطي والاستعادة الشاملة -->
+    <string name="card_backup_export">تصدير كل البيانات</string>
+    <string name="card_backup_import">استيراد نسخة احتياطية</string>
+    <string name="backup_export_title">تصدير بيانات المتصفح</string>
+    <string name="backup_export_summary_intro">سيُنشأ ملف نسخة احتياطية JSON يشمل:</string>
+    <string name="backup_count_whitelist">القائمة البيضاء: %1$d قاعدة</string>
+    <string name="backup_count_history">سجل التصفح: %1$d زيارة</string>
+    <string name="backup_count_downloads">التنزيلات: %1$d سجل</string>
+    <string name="backup_count_blocked">النشاط المحظور: %1$d حدث</string>
+    <string name="backup_count_settings">الإعدادات: %1$d مفتاح</string>
+    <string name="backup_include_pin">تضمين رمز الوالدين (هاش PBKDF2 محمي — يُعيد الرمز نفسه عند الاستيراد)</string>
+    <string name="backup_export_note">نصيحة: احفظ ملف النسخة في مكان آمن — فهو يحتوي على سجل التصفح.</string>
+    <string name="backup_export_action">اختيار مكان الحفظ</string>
+    <string name="backup_export_done">تم التصدير: %1$s</string>
+    <string name="backup_export_failed">فشل التصدير</string>
+    <string name="backup_default_file_name">ملف النسخة</string>
+    <string name="backup_import_title">استيراد نسخة احتياطية</string>
+    <string name="backup_import_from">نسخة بتاريخ %1$s (تطبيق %2$s) وتحتوي:</string>
+    <string name="backup_import_mode_title">وضع الاستيراد</string>
+    <string name="backup_mode_merge">دمج مع البيانات الحالية</string>
+    <string name="backup_mode_replace">استبدال البيانات الحالية</string>
+    <string name="backup_mode_replace_warn">الاستبدال يمسح القائمة البيضاء والسجل والتنزيلات والنشاط المحظور الحالي قبل استيراد محتوى النسخة.</string>
+    <string name="backup_restore_pin">استعادة رمز الوالدين من هذه النسخة</string>
+    <string name="backup_import_action">استيراد الآن</string>
+    <string name="backup_import_done">تم الاستيراد — %1$s</string>
+    <string name="backup_import_nothing">لا توجد بيانات قابلة للاستيراد</string>
+    <string name="backup_import_failed">فشل الاستيراد: %1$s</string>
+    <string name="backup_invalid_file">هذا الملف ليس نسخة احتياطية صالحة من المتصفح</string>
+    <string name="backup_unsupported_version">إصدار النسخة غير مدعوم — حدّث التطبيق أولًا</string>
+    <string name="backup_corrupted">ملف النسخة تالف (فشل التحقق من السلامة)</string>
+    <string name="backup_res_whitelist">+%1$d قاعدة قائمة بيضاء</string>
+    <string name="backup_res_history">+%1$d زيارة للسجل</string>
+    <string name="backup_res_downloads">+%1$d سجل تنزيلات</string>
+    <string name="backup_res_blocked">+%1$d حدث محظور</string>
+    <string name="backup_res_settings">تُطبّق %1$d إعداد</string>
+    <string name="backup_res_pin">أُعيد رمز الوالدين</string>
+    <string name="backup_res_skipped">تُخطّي %1$d قاعدة موجودة مسبقًا</string>
 </resources>

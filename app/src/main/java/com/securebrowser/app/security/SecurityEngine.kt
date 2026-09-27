@@ -26,7 +26,9 @@ import com.securebrowser.app.security.whitelist.WhiteListEngine
 class SecurityEngine(
     private val whiteListEngine: WhiteListEngine,
     private val policyManager: PolicyManager,
-    private val infraHostsProvider: () -> Set<String> = { emptySet() }
+    private val infraHostsProvider: () -> Set<String> = { emptySet() },
+    /** v1.9.0 — بوابة الوالد للسماح بالروابط المحلية (الافتراضي مفعّل). */
+    private val localNetworkAllowed: () -> Boolean = { true }
 ) {
 
     fun validate(
@@ -142,6 +144,18 @@ class SecurityEngine(
         // 4) نافذة الوصول المؤقت (شاملة، بمؤقّت مخزَّن مشفر يفتحها الوالد بعد المصادقة) —
         //    حتى أثناءها تبقى المخططات الخطرة محظورة (فُحصت أعلاه).
         if (policyManager.temporaryAccess.isActive()) {
+            return NavigationDecision.Allow(parsed)
+        }
+
+        // 4.5) الشبكة المحلية (v1.9.0 — طلب المستخدم الصريح):
+        // روابط الراوتر/NAS/الأجهزة المنزلية (192.168.*، 10.*، 172.16-31.*،
+        // 127.*، [::1]، fe80::، fc/fd::، .local، .lan، .home.arpa، .internal،
+        // localhost) تعمل مباشرة **دون إضافتها إلى القائمة البيضاء**،
+        // وبقرار والد قابل للإيقاف (allow_local_network).
+        // الحدود: تُطبَّق هنا بعد فحص المخطط وسلامة العنوان تمامًا كاستثناء
+        // المحرك — المخططات الخطرة تبقى محظورة حتى على العناوين المحلية،
+        // ولا يوجد أي DNS resolution في كشف المحلية (لا DNS rebinding).
+        if (localNetworkAllowed() && LocalNetworkPolicy.isLocalNetwork(parsed)) {
             return NavigationDecision.Allow(parsed)
         }
 

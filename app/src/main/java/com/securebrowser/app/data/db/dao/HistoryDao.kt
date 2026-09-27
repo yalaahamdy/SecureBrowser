@@ -19,6 +19,14 @@ interface HistoryDao {
     @Query("SELECT * FROM history ORDER BY timestamp DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<HistoryEntity>
 
+    /** v1.9.0 — كامل السجل بترتيب زمني (تصدير النسخة الاحتياطية). */
+    @Query("SELECT * FROM history ORDER BY timestamp ASC")
+    suspend fun getAll(): List<HistoryEntity>
+
+    /** v1.9.0 — عدد سجلات السجل (حوار التصدير). */
+    @Query("SELECT COUNT(*) FROM history")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM history ORDER BY timestamp DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<HistoryEntity>>
 

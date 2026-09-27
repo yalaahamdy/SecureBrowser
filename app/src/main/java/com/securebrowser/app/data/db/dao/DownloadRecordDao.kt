@@ -15,6 +15,14 @@ interface DownloadRecordDao {
     @Query("SELECT * FROM downloads ORDER BY timestamp DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<DownloadRecordEntity>
 
+    /** v1.9.0 — كل سجلات التنزيلات (تصدير النسخة الاحتياطية). */
+    @Query("SELECT * FROM downloads ORDER BY timestamp ASC")
+    suspend fun getAll(): List<DownloadRecordEntity>
+
+    /** v1.9.0 — عدد سجلات التنزيلات (حوار التصدير). */
+    @Query("SELECT COUNT(*) FROM downloads")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM downloads ORDER BY timestamp DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<DownloadRecordEntity>>
 

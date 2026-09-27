@@ -98,6 +98,17 @@ class SettingsRepository(
     val unknownPolicy: String get() = string("unknown_policy", "allow")     // allow | approval | block
     val lockTimeoutMinutes: Int get() = int("lock_timeout_minutes", 5).coerceIn(1, 60)
 
+    /**
+     * v1.9.0 — السماح بالروابط المحلية على الشبكة (الراوتر، NAS، الطابعة،
+     * خوادم التعليم المحلية: 192.168.*، 10.*، 172.16-31.*، 127.*، ::1،
+     * fe80::، fc/fd::، .local، .lan، .home.arpa، .internal، localhost)
+     * **دون إضافتها إلى القائمة البيضاء** — طلب المستخدم الصريح.
+     * الافتراضي مفعّل، والوالد يستطيع إيقافه من إعدادات الوالدين فيعود
+     * الحكم لهذه الروابط للقائمة البيضاء كالمعتاد (لا مسار لتعطيل القائمة
+     * البيضاء نفسها إطلاقًا).
+     */
+    val allowLocalNetwork: Boolean get() = bool("allow_local_network", true)
+
     companion object {
         const val MIN_ZOOM = 50
         const val MAX_ZOOM = 200

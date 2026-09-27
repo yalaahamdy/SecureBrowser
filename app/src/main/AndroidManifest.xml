@@ -7,6 +7,12 @@
     <!-- v1.4.0: فتح بوابة الوالدين بالبصمة (اختياري للوالد) — صلاحية عادية بلا موافقة مستخدم -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- v1.9.0: قارئ QR المدمج — الكاميرا للمسح فقط، لا تصوير ولا تخزين -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+
     <!-- رؤية حزم التطبيقات الخارجية المدعومة (Android 11+) — v1.2.0:
          أُضيفت عملاء بديلة (Telegram X)، ومشغلات الوسائط المعروفة،
          ومخططات التطبيقات/المشغلات، وأنواع mime للفيديو/الصوت —
@@ -152,6 +158,13 @@
         <activity
             android:name=".browser.SettingsActivity"
             android:exported="false" />
+
+        <!-- v1.9.0: قارئ رموز QR المدمج -->
+        <activity
+            android:name=".ui.qr.QrScannerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
 
         <!-- مشاركة/فتح الملفات المنزّلة عبر FileProvider -->
         <provider

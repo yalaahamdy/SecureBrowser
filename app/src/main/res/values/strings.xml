@@ -343,4 +343,61 @@
     <string name="remove_site_message">After removal, %1$s will no longer be openable from the browser.</string>
     <string name="site_removed">Website removed from the whitelist</string>
     <string name="cd_site_icon">Website icon</string>
+
+    <!-- v1.9.0 — built-in QR scanner (links & search text) -->
+    <string name="menu_scan_qr">Scan QR code</string>
+    <string name="cd_qr_scan">Scan QR code</string>
+    <string name="qr_title">Scan QR code</string>
+    <string name="qr_hint">Point the camera at a QR code inside the frame</string>
+    <string name="qr_camera_rationale">The camera is needed to scan QR codes. It is used for scanning only — nothing is photographed or stored.</string>
+    <string name="qr_grant_permission">Grant permission</string>
+    <string name="qr_torch">Flashlight</string>
+    <string name="qr_type_link">Website link</string>
+    <string name="qr_type_text">Text</string>
+    <string name="qr_action_open">Open link</string>
+    <string name="qr_action_search">Search this text</string>
+    <string name="qr_action_copy">Copy</string>
+    <string name="qr_action_rescan">Keep scanning</string>
+    <string name="qr_camera_failed">Could not start the camera</string>
+
+    <!-- v1.9.0 — local network links without whitelist -->
+    <string name="card_local_network">Local network links</string>
+
+    <!-- v1.9.0 — full backup & restore -->
+    <string name="card_backup_export">Export all data</string>
+    <string name="card_backup_import">Import a backup file</string>
+    <string name="backup_export_title">Export browser data</string>
+    <string name="backup_export_summary_intro">A JSON backup file will include:</string>
+    <string name="backup_count_whitelist">Whitelist: %1$d rules</string>
+    <string name="backup_count_history">History: %1$d visits</string>
+    <string name="backup_count_downloads">Downloads: %1$d records</string>
+    <string name="backup_count_blocked">Blocked activity: %1$d events</string>
+    <string name="backup_count_settings">Settings: %1$d keys</string>
+    <string name="backup_include_pin">Include the parent PIN (protected PBKDF2 hash — restores the same PIN on import)</string>
+    <string name="backup_export_note">Tip: keep the backup file in a safe place — it contains browsing history.</string>
+    <string name="backup_export_action">Choose save location</string>
+    <string name="backup_export_done">Backup exported: %1$s</string>
+    <string name="backup_export_failed">Export failed</string>
+    <string name="backup_default_file_name">backup file</string>
+    <string name="backup_import_title">Import a backup</string>
+    <string name="backup_import_from">Backup from %1$s (app %2$s) contains:</string>
+    <string name="backup_import_mode_title">Import mode</string>
+    <string name="backup_mode_merge">Merge with current data</string>
+    <string name="backup_mode_replace">Replace current data</string>
+    <string name="backup_mode_replace_warn">Replace clears the current whitelist, history, downloads and blocked activity before importing the backup contents.</string>
+    <string name="backup_restore_pin">Restore the parent PIN from this backup</string>
+    <string name="backup_import_action">Import now</string>
+    <string name="backup_import_done">Import finished — %1$s</string>
+    <string name="backup_import_nothing">Nothing to import</string>
+    <string name="backup_import_failed">Import failed: %1$s</string>
+    <string name="backup_invalid_file">This file is not a valid browser backup</string>
+    <string name="backup_unsupported_version">Backup version not supported — update the app first</string>
+    <string name="backup_corrupted">The backup file is corrupted (integrity check failed)</string>
+    <string name="backup_res_whitelist">+%1$d whitelist rules</string>
+    <string name="backup_res_history">+%1$d history visits</string>
+    <string name="backup_res_downloads">+%1$d download records</string>
+    <string name="backup_res_blocked">+%1$d blocked events</string>
+    <string name="backup_res_settings">%1$d settings applied</string>
+    <string name="backup_res_pin">Parent PIN restored</string>
+    <string name="backup_res_skipped">%1$d existing rules skipped</string>
 </resources>

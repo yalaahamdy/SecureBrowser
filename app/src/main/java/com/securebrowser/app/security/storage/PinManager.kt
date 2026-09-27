@@ -71,6 +71,63 @@ class PinManager(private val storage: SecureStorage) {
                 PBEKeySpec(password, salt, iterations, KEY_BITS)
             ).encoded
 
+    // ————— v1.9.0 — النسخ الاحتياطي والاستعادة —————
+
+    /**
+     * لقطة رمز الوالدين للتصدير — **هاش PBKDF2 فقط، لا نص صريح أبدًا**.
+     * ملاحظة أمنية موثقة: القيم مرور عبر Keystore هنا، لكن في ملف النسخة
+     * تكون صيغة Hmac+ملح غير معكوسة إلا بقوة غاشمة — لذلك تضمينها في
+     * التصدير **اختياري** بقرار صريح من الوالد (خانة تأكيد).
+     * يرجع null إن لم يُضبط رمز بعد.
+     */
+    fun exportData(): PinSnapshot? {
+        val hash = storage.getString(KEY_HASH) ?: return null
+        val salt = storage.getString(KEY_SALT) ?: return null
+        return PinSnapshot(
+            hashB64 = hash,
+            saltB64 = salt,
+            iterations = storage.getLong(KEY_ITERATIONS, ITERATIONS.toLong()),
+            length = storage.getLong(KEY_LENGTH, 0L),
+            createdAt = storage.getLong(KEY_CREATED_AT, 0L)
+        )
+    }
+
+    /**
+     * استعادة رمز من نسخة احتياطية — نفس بنية [storePin] بلا إعادة احتساب
+     * (الهاش محسوب أصلًا بنفس PBKDF2WithHmacSHA256).
+     * تحقق صارم قبل الكتابة: مدى التكرارات + أطوال الملح/الهاش بالبايت.
+     * @return true عند نجاح الكتابة.
+     */
+    fun restoreData(snapshot: PinSnapshot): Boolean {
+        if (snapshot.iterations !in MIN_ITERATIONS..MAX_ITERATIONS) return false
+        return try {
+            val salt = Base64.decode(snapshot.saltB64, Base64.NO_WRAP)
+            val hash = Base64.decode(snapshot.hashB64, Base64.NO_WRAP)
+            if (salt.size != SALT_BYTES || hash.size != KEY_BITS / 8) return false
+            storage.putString(KEY_HASH, snapshot.hashB64)
+            storage.putString(KEY_SALT, snapshot.saltB64)
+            storage.putLong(KEY_ITERATIONS, snapshot.iterations)
+            storage.putLong(
+                KEY_LENGTH,
+                if (snapshot.length in MIN_LENGTH.toLong()..MAX_LENGTH.toLong())
+                    snapshot.length else 0L
+            )
+            storage.putLong(KEY_CREATED_AT, snapshot.createdAt)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /** لقطة رمز الوالدين (بلا نص صريح) — للنسخ الاحتياطي v1.9.0. */
+    data class PinSnapshot(
+        val hashB64: String,
+        val saltB64: String,
+        val iterations: Long,
+        val length: Long,
+        val createdAt: Long
+    )
+
     companion object {
         private const val KEY_HASH = "parent_pin_hash"
         private const val KEY_SALT = "parent_pin_salt"
@@ -80,6 +137,9 @@ class PinManager(private val storage: SecureStorage) {
         private const val ITERATIONS = 310_000
         private const val KEY_BITS = 256
         private const val SALT_BYTES = 16
+        /** v1.9.0 — مدى التكرارات المقبول عند استعادة لقطة رمز من نسخة احتياطية. */
+        const val MIN_ITERATIONS = 1_000L
+        const val MAX_ITERATIONS = 2_000_000L
         const val MIN_LENGTH = 4
         const val MAX_LENGTH = 12
         private val secureRandom = SecureRandom()

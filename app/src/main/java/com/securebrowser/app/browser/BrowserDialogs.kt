@@ -91,6 +91,8 @@ fun BrowserActivity.showBrowserMenu() {
     }
     rows.add(MenuRow(R.drawable.ic_add, getString(R.string.menu_new_tab)) { onNewTabRequested() })
     rows.add(MenuRow(R.drawable.ic_search, getString(R.string.menu_find)) { startFindInPage() })
+    // v1.9.0 — قارئ QR المدمج (روابط/نصوص بحث من الكاميرا مباشرة)
+    rows.add(MenuRow(R.drawable.ic_qr, getString(R.string.menu_scan_qr)) { openQrScanner() })
     rows.add(MenuRow(R.drawable.ic_globe, getString(R.string.menu_zoom)) { showZoomMenu() })
     rows.add(MenuRow(R.drawable.ic_share, getString(R.string.menu_share)) { sharePage() })
     rows.add(MenuRow(R.drawable.ic_download, getString(R.string.menu_downloads)) { openDownloads() })

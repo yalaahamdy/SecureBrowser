@@ -119,6 +119,11 @@
                 <include
                     android:id="@+id/cardBiometric"
                     layout="@layout/row_action_card" />
+
+                <!-- v1.9.0: الروابط المحلية على الشبكة تعمل دون قائمة بيضاء (قرار والد) -->
+                <include
+                    android:id="@+id/cardLocalNetwork"
+                    layout="@layout/row_action_card" />
             </LinearLayout>
 
             <include
@@ -130,6 +135,15 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:paddingHorizontal="2dp">
+
+                <!-- v1.9.0: تصدير/استيراد شامل لكل بيانات المتصفح (JSON + SAF) -->
+                <include
+                    android:id="@+id/cardBackupExport"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardBackupImport"
+                    layout="@layout/row_action_card" />
 
                 <include
                     android:id="@+id/cardClearHistory"

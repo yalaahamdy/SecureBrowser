@@ -67,6 +67,19 @@
                     android:focusable="true"
                     android:src="@drawable/ic_shield_check"
                     android:tint="@color/browserBarForeground" />
+
+                <!-- v1.9.0: قارئ QR مدمج — روابط ونصوص بحث مباشرة من الكاميرا -->
+                <ImageView
+                    android:id="@+id/btnQrScan"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="end|center_vertical"
+                    android:layout_marginEnd="8dp"
+                    android:clickable="true"
+                    android:contentDescription="@string/cd_qr_scan"
+                    android:focusable="true"
+                    android:src="@drawable/ic_qr"
+                    android:tint="@color/browserBarForeground" />
             </FrameLayout>
 
             <ImageButton

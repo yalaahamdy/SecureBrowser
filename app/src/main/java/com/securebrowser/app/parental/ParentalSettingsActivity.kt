@@ -1,17 +1,31 @@
 package com.securebrowser.app.parental
 
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
 import com.securebrowser.app.R
+import com.securebrowser.app.data.backup.BackupCodec
+import com.securebrowser.app.data.backup.BackupManager
+import com.securebrowser.app.data.backup.ImportMode
 import com.securebrowser.app.databinding.ActivityParentalSettingsBinding
+import com.securebrowser.app.databinding.DialogBackupExportBinding
+import com.securebrowser.app.databinding.DialogBackupImportBinding
 import com.securebrowser.app.databinding.RowActionCardBinding
 import com.securebrowser.app.di.ServiceLocator
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.text.DateFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 /**
@@ -83,6 +97,18 @@ class ParentalSettingsActivity : AppCompatActivity() {
         bindCard(
             binding.cardBiometric, R.drawable.ic_lock, getString(R.string.card_biometric)
         ) { showBiometricChoice() }
+
+        // v1.9.0: الروابط المحلية على الشبكة (192.168.*، .local، NAS…) تعمل دون قائمة بيضاء
+        bindCard(
+            binding.cardLocalNetwork, R.drawable.ic_globe, getString(R.string.card_local_network)
+        ) { showChoiceDialog(
+            getString(R.string.card_local_network),
+            arrayOf(getString(R.string.value_on), getString(R.string.value_off))
+        ) { index ->
+            lifecycleScope.launch {
+                ServiceLocator.settingsRepository.putBool("allow_local_network", index == 0)
+            }
+        } }
 
         // ————— سياسة التنزيلات — السماح مع التسجيل هو الافتراضي (طلب الوالد الصريح) —————
         // لا شيء يُحظر افتراضيًا؛ كل تنزيل يُسجَّل في شاشة التنزيلات.
@@ -160,6 +186,12 @@ class ParentalSettingsActivity : AppCompatActivity() {
 
         // ————— أدوات البيانات —————
         bindCard(
+            binding.cardBackupExport, R.drawable.ic_backup, getString(R.string.card_backup_export)
+        ) { showExportDialog() }
+        bindCard(
+            binding.cardBackupImport, R.drawable.ic_restore, getString(R.string.card_backup_import)
+        ) { showImportPicker() }
+        bindCard(
             binding.cardClearHistory, R.drawable.ic_delete, getString(R.string.card_clear_history)
         ) { confirmClear(
             getString(R.string.confirm_clear_history)
@@ -206,6 +238,9 @@ class ParentalSettingsActivity : AppCompatActivity() {
         binding.cardBiometric.cardValue.isVisible = true
         binding.cardBiometric.cardValue.text =
             getString(if (s.biometricUnlock) R.string.value_on else R.string.value_off)
+        binding.cardLocalNetwork.cardValue.isVisible = true
+        binding.cardLocalNetwork.cardValue.text =
+            getString(if (s.allowLocalNetwork) R.string.value_on else R.string.value_off)
         binding.cardApkPolicy.cardValue.isVisible = true
         binding.cardApkPolicy.cardValue.text = policyLabel(s.apkPolicy)
         binding.cardArchivePolicy.cardValue.isVisible = true
@@ -451,4 +486,211 @@ class ParentalSettingsActivity : AppCompatActivity() {
     private fun toast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
+
+    // ————————————————— v1.9.0 — النسخ الاحتياطي والاستعادة —————————————————
+
+    /** JSON جاهز ينتظر اختيار مكان الحفظ (بين حوار التصدير وحوار SAF). */
+    private var pendingExportJson: String? = null
+
+    private val exportLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            val json = pendingExportJson
+            pendingExportJson = null
+            if (uri == null || json == null) return@registerForActivityResult
+            lifecycleScope.launch {
+                val ok = runCatching {
+                    contentResolver.openOutputStream(uri)?.use { output ->
+                        output.write(json.toByteArray(Charsets.UTF_8))
+                        output.flush()
+                        true
+                    } ?: false
+                }.getOrDefault(false)
+                if (ok) {
+                    toast(getString(R.string.backup_export_done, displayName(uri)))
+                } else {
+                    toast(getString(R.string.backup_export_failed, ""))
+                }
+            }
+        }
+
+    private val importLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@registerForActivityResult
+            lifecycleScope.launch {
+                val text = runCatching {
+                    readTextCapped(uri, BackupCodec.MAX_BACKUP_BYTES)
+                }.getOrNull()
+                if (text == null) {
+                    toast(getString(R.string.backup_import_failed, getString(R.string.backup_invalid_file)))
+                    return@launch
+                }
+                showImportDialog(text)
+            }
+        }
+
+    private fun showExportDialog() {
+        lifecycleScope.launch {
+            val counts = runCatching { ServiceLocator.backupManager.counts() }
+                .getOrElse { toast(getString(R.string.backup_export_failed, "")); return@launch }
+            val dialogBinding = DialogBackupExportBinding.inflate(layoutInflater)
+            dialogBinding.backupExportSummary.text = buildString {
+                append(getString(R.string.backup_export_summary_intro))
+                append("\n")
+                append(getString(R.string.backup_count_whitelist, counts.whitelist))
+                append("\n")
+                append(getString(R.string.backup_count_history, counts.history))
+                append("\n")
+                append(getString(R.string.backup_count_downloads, counts.downloads))
+                append("\n")
+                append(getString(R.string.backup_count_blocked, counts.blocked))
+                append("\n")
+                append(getString(R.string.backup_count_settings, counts.settings))
+            }
+            dialogBinding.backupIncludePin.isVisible = counts.hasPin
+            AlertDialog.Builder(this@ParentalSettingsActivity)
+                .setTitle(R.string.backup_export_title)
+                .setView(dialogBinding.root)
+                .setPositiveButton(R.string.backup_export_action) { _, _ ->
+                    val includePin = dialogBinding.backupIncludePin.isVisible &&
+                        dialogBinding.backupIncludePin.isChecked
+                    lifecycleScope.launch {
+                        val json = runCatching {
+                            ServiceLocator.backupManager
+                                .export(includePin, appVersionName())
+                                .toString(2)
+                        }.getOrElse {
+                            toast(getString(R.string.backup_export_failed, ""))
+                            return@launch
+                        }
+                        val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
+                        pendingExportJson = json
+                        runCatching {
+                            exportLauncher.launch("securebrowser-backup-$stamp.json")
+                        }.onFailure {
+                            pendingExportJson = null
+                            toast(getString(R.string.backup_export_failed, ""))
+                        }
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun showImportPicker() {
+        runCatching {
+            importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+        }.onFailure {
+            toast(getString(R.string.backup_import_failed, ""))
+        }
+    }
+
+    private fun showImportDialog(text: String) {
+        lifecycleScope.launch {
+            val summary = runCatching { ServiceLocator.backupManager.summarize(text) }
+                .getOrElse { e ->
+                    toast(getString(R.string.backup_import_failed, backupErrorLabel(e)))
+                    return@launch
+                }
+            val dialogBinding = DialogBackupImportBinding.inflate(layoutInflater)
+            dialogBinding.backupImportSummary.text = buildString {
+                append(
+                    getString(
+                        R.string.backup_import_from,
+                        DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(summary.createdAt)),
+                        summary.appVersion.ifBlank { "—" }
+                    )
+                )
+                append("\n")
+                append(getString(R.string.backup_count_whitelist, summary.whitelist))
+                append("\n")
+                append(getString(R.string.backup_count_history, summary.history))
+                append("\n")
+                append(getString(R.string.backup_count_downloads, summary.downloads))
+                append("\n")
+                append(getString(R.string.backup_count_blocked, summary.blocked))
+                append("\n")
+                append(getString(R.string.backup_count_settings, summary.settings))
+            }
+            dialogBinding.backupRestorePin.isVisible = summary.hasPin
+            dialogBinding.backupRestorePin.isChecked = false
+            dialogBinding.backupReplaceWarning.isVisible = false
+            dialogBinding.rbReplace.setOnCheckedChangeListener { _, checked ->
+                dialogBinding.backupReplaceWarning.isVisible = checked
+            }
+            AlertDialog.Builder(this@ParentalSettingsActivity)
+                .setTitle(R.string.backup_import_title)
+                .setView(dialogBinding.root)
+                .setPositiveButton(R.string.backup_import_action) { _, _ ->
+                    val mode =
+                        if (dialogBinding.rbReplace.isChecked) ImportMode.REPLACE else ImportMode.MERGE
+                    val restorePin = dialogBinding.backupRestorePin.isVisible &&
+                        dialogBinding.backupRestorePin.isChecked
+                    lifecycleScope.launch {
+                        val outcome = runCatching {
+                            ServiceLocator.backupManager.import(text, mode, restorePin)
+                        }.getOrElse { e ->
+                            toast(getString(R.string.backup_import_failed, backupErrorLabel(e)))
+                            return@launch
+                        }
+                        toast(buildImportResultMessage(outcome))
+                        refreshValues()
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
+
+    /** رسالة نتيجة الاستيراد — أعداد مضافة وتخطّيات واضحة. */
+    private fun buildImportResultMessage(outcome: BackupCodec.ImportOutcome): String {
+        val parts = ArrayList<String>(8)
+        if (outcome.totalAdded() == 0 && outcome.settingsApplied == 0 && !outcome.pinRestored) {
+            return getString(R.string.backup_import_nothing)
+        }
+        if (outcome.rulesAdded > 0) parts.add(getString(R.string.backup_res_whitelist, outcome.rulesAdded))
+        if (outcome.historyAdded > 0) parts.add(getString(R.string.backup_res_history, outcome.historyAdded))
+        if (outcome.downloadsAdded > 0) parts.add(getString(R.string.backup_res_downloads, outcome.downloadsAdded))
+        if (outcome.blockedAdded > 0) parts.add(getString(R.string.backup_res_blocked, outcome.blockedAdded))
+        if (outcome.settingsApplied > 0) parts.add(getString(R.string.backup_res_settings, outcome.settingsApplied))
+        if (outcome.pinRestored) parts.add(getString(R.string.backup_res_pin))
+        if (outcome.rulesSkipped > 0) parts.add(getString(R.string.backup_res_skipped, outcome.rulesSkipped))
+        return getString(R.string.backup_import_done, parts.joinToString(" • "))
+    }
+
+    /** تحويل أخطاء المخطط إلى رسائل مفهومة. */
+    private fun backupErrorLabel(e: Throwable): String = when {
+        e is BackupCodec.BackupException && e.reason == "unsupported_version" ->
+            getString(R.string.backup_unsupported_version)
+        e is BackupCodec.BackupException && e.reason == "corrupted" ->
+            getString(R.string.backup_corrupted)
+        else -> getString(R.string.backup_invalid_file)
+    }
+
+    private fun readTextCapped(uri: Uri, maxBytes: Long): String {
+        contentResolver.openInputStream(uri)?.use { input ->
+            val buffer = ByteArrayOutputStream()
+            val chunk = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+                val read = input.read(chunk)
+                if (read <= 0) break
+                total += read
+                if (total > maxBytes) throw IOException("backup_too_large")
+                buffer.write(chunk, 0, read)
+            }
+            return buffer.toString("UTF-8")
+        } ?: throw IOException("no_stream")
+    }
+
+    private fun displayName(uri: Uri): String = runCatching {
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+    }.getOrNull() ?: getString(R.string.backup_default_file_name)
+
+    private fun appVersionName(): String = runCatching {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+    }.getOrDefault("")
 }

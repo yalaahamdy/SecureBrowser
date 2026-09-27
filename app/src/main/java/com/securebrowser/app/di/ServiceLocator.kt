@@ -67,6 +67,9 @@ object ServiceLocator {
         private set
     lateinit var downloadManager: BrowserDownloadManager
         private set
+    /** v1.9.0 — النسخ الاحتياطي والاستعادة الشاملة لكل بيانات المتصفح. */
+    lateinit var backupManager: com.securebrowser.app.data.backup.BackupManager
+        private set
 
     @Volatile
     private var initialized = false
@@ -99,11 +102,17 @@ object ServiceLocator {
             whiteListEngine = WhiteListEngine(
                 WhiteListRuleProvider { whiteListRepository.currentRules() }
             )
-            securityEngine = SecurityEngine(whiteListEngine, policyManager) {
-                searchEngineInfraHosts(settingsRepository.searchEngine)
-            }
+            // v1.9.0 — بوابة الشبكة المحلية موصولة بإعداد الوالدين (الافتراضي مفعّل)
+            securityEngine = SecurityEngine(
+                whiteListEngine,
+                policyManager,
+                infraHostsProvider = { searchEngineInfraHosts(settingsRepository.searchEngine) },
+                localNetworkAllowed = { settingsRepository.allowLocalNetwork }
+            )
 
             downloadManager = BrowserDownloadManager(appContext, downloadRepository, applicationScope)
+            // v1.9.0 — مدير النسخ الاحتياطي فوق نفس القاعدة + مدير الرمز (هاش PBKDF2 فقط)
+            backupManager = com.securebrowser.app.data.backup.BackupManager(database, pinManager)
 
             // ترحيل سياسة v1.2.0 (schema 1 → 2): طلب الوالد الصريح "لا حظر لأي تنزيل،
             // فقط تسجيلها" — يُطبَّق مرة واحدة حتى على التثبيتات القديمة التي حفظت

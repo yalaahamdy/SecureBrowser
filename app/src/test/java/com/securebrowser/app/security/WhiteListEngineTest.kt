@@ -198,8 +198,18 @@ class WhiteListEngineTest {
     // ————————————————— Blocked: IP ومخططات خبيثة —————————————————
 
     @Test
-    fun `blocked - ip literal not in whitelist`() =
-        assertBlocked("https://192.168.1.55/admin", BlockReason.NOT_WHITELISTED)
+    fun `blocked - public ip literal not in whitelist`() =
+        // IP عام ليس في القائمة — يبقى محظورًا
+        assertBlocked("https://8.8.8.8/admin", BlockReason.NOT_WHITELISTED)
+
+    @Test
+    fun `v1_9_0 - local network ip allowed without whitelist`() {
+        // v1.9.0 — طلب المستخدم الصريح: عناوين الشبكة المحلية تعمل مباشرة
+        // دون قائمة بيضاء (192.168.* ضمن النطاقات الخاصة المعتمدة)،
+        // بينما تبقى عناوين الإنترنت العامة خاضعة للقائمة كما كان.
+        assertAllowed("https://192.168.1.55/admin")
+        assertBlocked("https://8.8.8.8/admin", BlockReason.NOT_WHITELISTED)
+    }
 
     @Test
     fun `blocked - ipv6 literal not in whitelist`() =

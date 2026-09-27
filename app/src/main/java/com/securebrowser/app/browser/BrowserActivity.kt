@@ -85,6 +85,15 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             fileChooserCallback = null
         }
 
+    /** v1.9.0 — قارئ QR المدمج: النتيجة تدخل نفس مسار شريط العنوان تمامًا. */
+    private val qrScannerLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val text = result.data?.getStringExtra(
+                com.securebrowser.app.ui.qr.QrScannerActivity.EXTRA_RESULT_TEXT
+            )
+            if (!text.isNullOrBlank()) onQrScanned(text)
+        }
+
     private var lastErrorUrl: String? = null
     private var lastErrorDescription: String? = null
 
@@ -195,6 +204,8 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         binding.btnMenu.setOnClickListener { showBrowserMenu() }
         binding.tabsChip.setOnClickListener { showTabsSheet() }
         binding.btnSiteInfo.setOnClickListener { showSiteInfo() }
+        // v1.9.0 — قارئ QR المدمج في شريط العنوان
+        binding.btnQrScan.setOnClickListener { openQrScanner() }
 
         binding.addressBar.setOnEditorActionListener { view, actionId, event ->
             val go = actionId == EditorInfo.IME_ACTION_GO ||
@@ -372,6 +383,32 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     private sealed class ResolvedInput {
         class Url(val url: String) : ResolvedInput()
         class Search(val searchUrl: String) : ResolvedInput()
+    }
+
+    // ————————————————— قارئ QR المدمج (v1.9.0) —————————————————
+
+    fun openQrScanner() {
+        runCatching {
+            qrScannerLauncher.launch(com.securebrowser.app.ui.qr.QrScannerActivity.intent(this))
+        }.onFailure {
+            Toast.makeText(this, R.string.qr_camera_failed, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * نتيجة مسح QR — رابط أو نص بحث، يعالَج **بنفس مسار شريط العنوان حرفيًا**
+     * (resolveInput → navigateInternal) فيخضع لـ SecurityEngine والقائمة
+     * البيضاء والشبكة المحلية كأي كتابة يدوية — المسح لا يفتح أي مسار جديد.
+     */
+    private fun onQrScanned(text: String) {
+        if (text.isBlank()) return
+        lifecycleScope.launch {
+            ServiceLocator.whiteListEngine.refresh()
+            when (val target = resolveInput(text)) {
+                is ResolvedInput.Url -> navigateInternal(target.url, NavigationType.TYPED)
+                is ResolvedInput.Search -> navigateInternal(target.searchUrl, NavigationType.TYPED)
+            }
+        }
     }
 
     private fun setupOverlays() {
