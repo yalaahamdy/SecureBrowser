@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -13,15 +14,19 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.securebrowser.app.R
+import com.securebrowser.app.core.url.NormalizeResult
+import com.securebrowser.app.core.url.UrlNormalizer
 import com.securebrowser.app.data.repository.AddOption
 import com.securebrowser.app.data.repository.SettingsRepository
 import com.securebrowser.app.databinding.DialogAddWhitelistBinding
+import com.securebrowser.app.databinding.DialogInstallShortcutBinding
 import com.securebrowser.app.databinding.ItemMenuRowBinding
 import com.securebrowser.app.databinding.ItemTabCardBinding
 import com.securebrowser.app.databinding.SheetSiteInfoBinding
 import com.securebrowser.app.databinding.SheetTabsBinding
 import com.securebrowser.app.di.ServiceLocator
 import com.securebrowser.app.parental.ParentalActivity
+import com.securebrowser.app.ui.FaviconLoader
 import com.securebrowser.app.security.whitelist.RuleType
 import com.securebrowser.app.security.whitelist.SubdomainPolicy
 import com.securebrowser.app.ui.PinGate
@@ -93,6 +98,15 @@ fun BrowserActivity.showBrowserMenu() {
     rows.add(MenuRow(R.drawable.ic_search, getString(R.string.menu_find)) { startFindInPage() })
     // v1.9.0 — قارئ QR المدمج (روابط/نصوص بحث من الكاميرا مباشرة)
     rows.add(MenuRow(R.drawable.ic_qr, getString(R.string.menu_scan_qr)) { openQrScanner() })
+    // v1.10.0 — تثبيت الموقع كتطبيق على الشاشة الرئيسية
+    val currentUrl = currentTabUrl()
+    if (WebShortcutManager.canPinUrl(currentUrl)) {
+        rows.add(
+            MenuRow(R.drawable.ic_install_shortcut, getString(R.string.menu_install_shortcut)) {
+                promptInstallShortcut(currentUrl!!)
+            }
+        )
+    }
     rows.add(MenuRow(R.drawable.ic_globe, getString(R.string.menu_zoom)) { showZoomMenu() })
     rows.add(MenuRow(R.drawable.ic_share, getString(R.string.menu_share)) { sharePage() })
     rows.add(MenuRow(R.drawable.ic_download, getString(R.string.menu_downloads)) { openDownloads() })
@@ -333,7 +347,7 @@ fun BrowserActivity.showQuickHistory() {
 
 /** لوحة إجراءات عنصر السجل: فتح/تبويب جديد/نسخ/مشاركة/إضافة للقائمة/معلومات (§9). */
 fun BrowserActivity.showHistoryActions(url: String) {
-    val rows = listOf(
+    val rows = mutableListOf(
         MenuRow(R.drawable.ic_open_new, getString(R.string.history_open)) {
             navigateFromExternal(url, newTab = false)
         },
@@ -343,10 +357,21 @@ fun BrowserActivity.showHistoryActions(url: String) {
         MenuRow(R.drawable.ic_copy, getString(R.string.history_copy_url)) {
             copyToClipboard(url)
         },
-        MenuRow(R.drawable.ic_share, getString(R.string.history_share)) { shareText(url) },
+        MenuRow(R.drawable.ic_share, getString(R.string.history_share)) { shareText(url) }
+    )
+    if (WebShortcutManager.canPinUrl(url)) {
+        rows.add(
+            MenuRow(R.drawable.ic_install_shortcut, getString(R.string.menu_install_shortcut)) {
+                promptInstallShortcut(url)
+            }
+        )
+    }
+    rows.add(
         MenuRow(R.drawable.ic_shield_check, getString(R.string.history_add_whitelist)) {
             PinGate.show(this) { showAddToWhitelistDialog(url) }
-        },
+        }
+    )
+    rows.add(
         MenuRow(R.drawable.ic_info, getString(R.string.history_site_info)) {
             showSiteInfoFor(url)
         }
@@ -406,4 +431,122 @@ fun BrowserActivity.openDownloads() {
 
 fun BrowserActivity.openChildSettings() {
     startActivity(android.content.Intent(this, SettingsActivity::class.java))
+}
+
+/**
+ * حوار تثبيت الموقع كتطبيق على الشاشة الرئيسية (v1.10.0).
+ *
+ * يسمح للمستخدم بتخصيص اسم التطبيق، ويعرض معاينة للأيقونة والنطاق،
+ * ويوضح شارة الأمان (موقع مسموح / وصول مؤقت / غير مدرج)،
+ * مع التثبيت الفعلي عبر [WebShortcutManager].
+ */
+fun BrowserActivity.promptInstallShortcut(rawUrl: String, customTitle: String? = null) {
+    if (!WebShortcutManager.canPinUrl(rawUrl)) {
+        Toast.makeText(this, R.string.shortcut_invalid_url, Toast.LENGTH_SHORT).show()
+        return
+    }
+    if (!WebShortcutManager.isSupported(this)) {
+        Toast.makeText(this, R.string.shortcut_unsupported, Toast.LENGTH_LONG).show()
+        return
+    }
+
+    val host = WebShortcutManager.extractHost(rawUrl)
+    val activeTab = tabsManager().activeTab
+    val defaultTitle = customTitle?.takeIf { it.isNotBlank() }
+        ?: if (activeTab != null && (activeTab.uiState.url == rawUrl || activeTab.attemptedUrl == rawUrl)) {
+            activeTab.uiState.title?.takeIf { it.isNotBlank() } ?: host
+        } else {
+            host
+        }
+
+    val binding = DialogInstallShortcutBinding.inflate(layoutInflater)
+    binding.shortcutUrlPreview.text = host.ifBlank { rawUrl }
+    binding.shortcutTitleInput.setText(defaultTitle)
+    binding.shortcutTitleInput.selectAll()
+
+    lifecycleScope.launch {
+        ServiceLocator.whiteListEngine.refresh()
+        val parsed = UrlNormalizer.normalize(rawUrl)
+        val normalizedUrl = (parsed as? NormalizeResult.Success)?.url
+        val isAllowed = normalizedUrl?.let { ServiceLocator.whiteListEngine.isAllowed(it) } ?: false
+        val isTemp = ServiceLocator.temporaryAccess.isActive()
+
+        when {
+            isAllowed -> {
+                binding.shortcutSecurityBadge.text = getString(R.string.shortcut_security_badge_allowed)
+                binding.shortcutSecurityBadge.setTextColor(ContextCompat.getColor(this@promptInstallShortcut, R.color.chipDone))
+            }
+            isTemp -> {
+                binding.shortcutSecurityBadge.text = getString(R.string.shortcut_security_badge_temp)
+                binding.shortcutSecurityBadge.setTextColor(ContextCompat.getColor(this@promptInstallShortcut, R.color.chipPending))
+            }
+            else -> {
+                binding.shortcutSecurityBadge.text = getString(R.string.shortcut_security_badge_unlisted)
+                binding.shortcutSecurityBadge.setTextColor(ContextCompat.getColor(this@promptInstallShortcut, R.color.chipBlocked))
+            }
+        }
+
+        val activeFavicon = if (activeTab?.uiState?.url == rawUrl) activeTab.webView.favicon else null
+        val resolvedFavicon = activeFavicon ?: FaviconLoader.load(this@promptInstallShortcut, host)
+        val previewBitmap = WebShortcutManager.createAppIcon(this@promptInstallShortcut, host, resolvedFavicon)
+        binding.shortcutIconPreview.setImageBitmap(previewBitmap)
+
+        val dialog = MaterialAlertDialogBuilder(this@promptInstallShortcut)
+            .setTitle(R.string.shortcut_install_dialog_title)
+            .setView(binding.root)
+            .setPositiveButton(R.string.shortcut_btn_install, null)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+
+        dialog.setOnShowListener {
+            val positiveBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            positiveBtn.setOnClickListener {
+                val inputTitle = binding.shortcutTitleInput.text?.toString()?.trim()
+                val finalTitle = if (inputTitle.isNullOrBlank()) defaultTitle else inputTitle
+
+                lifecycleScope.launch {
+                    val result = WebShortcutManager.pinWebsite(
+                        context = this@promptInstallShortcut,
+                        url = rawUrl,
+                        customTitle = finalTitle,
+                        favicon = resolvedFavicon
+                    )
+                    when (result) {
+                        is PinResult.Success -> {
+                            Toast.makeText(
+                                this@promptInstallShortcut,
+                                getString(R.string.shortcut_pinned_success, result.title),
+                                Toast.LENGTH_LONG
+                            ).show()
+                            dialog.dismiss()
+                        }
+                        is PinResult.Unsupported -> {
+                            Toast.makeText(
+                                this@promptInstallShortcut,
+                                R.string.shortcut_unsupported,
+                                Toast.LENGTH_LONG
+                            ).show()
+                            dialog.dismiss()
+                        }
+                        is PinResult.InvalidUrl -> {
+                            Toast.makeText(
+                                this@promptInstallShortcut,
+                                R.string.shortcut_invalid_url,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        is PinResult.Error -> {
+                            Toast.makeText(
+                                this@promptInstallShortcut,
+                                result.message,
+                                Toast.LENGTH_LONG
+                            ).show()
+                            dialog.dismiss()
+                        }
+                    }
+                }
+            }
+        }
+        dialog.show()
+    }
 }

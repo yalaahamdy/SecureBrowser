@@ -400,4 +400,20 @@
     <string name="backup_res_settings">%1$d settings applied</string>
     <string name="backup_res_pin">Parent PIN restored</string>
     <string name="backup_res_skipped">%1$d existing rules skipped</string>
+
+    <!-- v1.10.0: Home Screen Pinned Shortcuts -->
+    <string name="menu_install_shortcut">Add to Home screen</string>
+    <string name="shortcut_install_dialog_title">Add to Home screen</string>
+    <string name="shortcut_install_dialog_subtitle">Install this website as an app on your home screen for quick one-tap access.</string>
+    <string name="shortcut_title_hint">App name</string>
+    <string name="shortcut_install_note">The website opens directly in Secure Browser subject to your active parental protection rules.</string>
+    <string name="shortcut_btn_install">Add</string>
+    <string name="shortcut_pinned_success">Added \"%1$s\" to home screen</string>
+    <string name="shortcut_unsupported">Your home launcher does not support pinned shortcuts</string>
+    <string name="shortcut_invalid_url">Only web pages (http/https) can be added to the home screen</string>
+    <string name="shortcut_security_badge_allowed">Allowed in whitelist</string>
+    <string name="shortcut_security_badge_temp">Temporary access active</string>
+    <string name="shortcut_security_badge_unlisted">Requires parental approval</string>
+    <string name="shortcut_from_badge">Web App</string>
+    <string name="cd_shortcut_icon">Website app icon preview</string>
 </resources>

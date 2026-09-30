@@ -155,8 +155,8 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         setupBackHandling()
         observeTempAccess()
 
-        // استعادة الجلسة (§5) أو تبويب جديد
-        val intentUrl = intent?.getStringExtra(EXTRA_OPEN_URL)
+        // استعادة الجلسة (§5) أو تبويب جديد (بما في ذلك الاختصارات المثبتة والروابط الخارجية)
+        val intentUrl = intent?.getStringExtra(EXTRA_OPEN_URL) ?: intent?.dataString
         if (intentUrl != null) {
             tabsManager.createTab(activate = true)
             lifecycleScope.launch { navigateInternal(intentUrl, NavigationType.TYPED) }
@@ -1237,10 +1237,11 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         }
     }
 
-    /** روابط مفتوحة من السجل/الخارج عندما يكون النشاط موجودًا مسبقًا (singleTask). */
+    /** روابط مفتوحة من السجل/الخارج/الاختصارات عندما يكون النشاط موجودًا مسبقًا (singleTask). */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        val url = intent.getStringExtra(EXTRA_OPEN_URL)
+        setIntent(intent)
+        val url = intent.getStringExtra(EXTRA_OPEN_URL) ?: intent.dataString
         if (!url.isNullOrBlank()) navigateFromExternal(url, newTab = false)
     }
 
@@ -1252,6 +1253,8 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
     companion object {
         const val EXTRA_OPEN_URL = "extra_open_url"
+        const val EXTRA_SHORTCUT_TITLE = "extra_shortcut_title"
+        const val EXTRA_FROM_SHORTCUT = "extra_from_shortcut"
         private const val SUBFRAME_EXTERNAL_DEBOUNCE_MS = 2000L
 
         /** v1.8.0 — أبعاد شرائط استبعاد إيماءة النظام (dp). */

@@ -26,7 +26,13 @@ class GateActivity : AppCompatActivity() {
             } else {
                 SetupPinActivity::class.java
             }
-            startActivity(Intent(this@GateActivity, target))
+            val forwardIntent = Intent(this@GateActivity, target).apply {
+                action = intent?.action
+                data = intent?.data
+                intent?.extras?.let { putExtras(it) }
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(forwardIntent)
             finish()
         }
     }

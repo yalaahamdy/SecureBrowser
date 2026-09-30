@@ -400,4 +400,20 @@
     <string name="backup_res_settings">تُطبّق %1$d إعداد</string>
     <string name="backup_res_pin">أُعيد رمز الوالدين</string>
     <string name="backup_res_skipped">تُخطّي %1$d قاعدة موجودة مسبقًا</string>
+
+    <!-- v1.10.0: تثبيت المواقع كتطبيق على الشاشة الرئيسية (Home Screen Pinned Shortcuts) -->
+    <string name="menu_install_shortcut">تثبيت كتطبيق على الشاشة الرئيسية</string>
+    <string name="shortcut_install_dialog_title">تثبيت الموقع كتطبيق</string>
+    <string name="shortcut_install_dialog_subtitle">تثبيت هذا الموقع كتطبيق على شاشتك الرئيسية للوصول السريع إليه بنقرة واحدة.</string>
+    <string name="shortcut_title_hint">اسم التطبيق</string>
+    <string name="shortcut_install_note">يفتح الموقع مباشرة داخل المتصفح الآمن مع استمرار تطبيق كافة ضوابط الحماية والرقابة الأبوية تلقائيًا.</string>
+    <string name="shortcut_btn_install">تثبيت</string>
+    <string name="shortcut_pinned_success">تمت إضافة \"%1$s\" إلى الشاشة الرئيسية بنجاح</string>
+    <string name="shortcut_unsupported">مشغّل الشاشة الرئيسية بجهازك لا يدعم تثبيت الاختصارات مباشرة</string>
+    <string name="shortcut_invalid_url">يمكن فقط تثبيت صفحات الويب المباشرة (http/https) على الشاشة الرئيسية</string>
+    <string name="shortcut_security_badge_allowed">موقع مصرح به في القائمة البيضاء</string>
+    <string name="shortcut_security_badge_temp">وصول مؤقت نشط</string>
+    <string name="shortcut_security_badge_unlisted">يتطلب موافقة الوالدين</string>
+    <string name="shortcut_from_badge">تطبيق ويب</string>
+    <string name="cd_shortcut_icon">معاينة أيقونة التطبيق</string>
 </resources>
