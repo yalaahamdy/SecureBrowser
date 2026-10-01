@@ -235,6 +235,17 @@ object DownloadActionsSheet {
             DownloadRepository.STATE_COMPLETED -> {
                 addRow(activity.getString(R.string.download_open)) { manager.openFile(download.id) }
                 addRow(activity.getString(R.string.download_share)) { manager.shareFile(download.id) }
+                addRow(activity.getString(R.string.download_export_public)) {
+                    manager.exportToPublicDownloads(download.id) { success, path ->
+                        val msg = if (success && path != null) {
+                            "${activity.getString(R.string.toast_download_saved_public)}\n($path)"
+                        } else {
+                            activity.getString(R.string.toast_download_failed, download.fileName)
+                        }
+                        android.widget.Toast.makeText(activity, msg, Toast.LENGTH_LONG).show()
+                    }
+                    sheetRef?.dismiss()
+                }
                 addRow(activity.getString(R.string.download_location)) {
                     manager.fileLocation(download.id) { path ->
                         android.widget.Toast.makeText(

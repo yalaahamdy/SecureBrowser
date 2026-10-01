@@ -319,6 +319,11 @@
 
     <!-- تنبيهات -->
     <string name="toast_download_started">بدأ تنزيل الملف</string>
+    <string name="toast_download_completed">تم اكتمال تنزيل: %1$s</string>
+    <string name="toast_download_failed">فشل تنزيل: %1$s</string>
+    <string name="download_export_public">حفظ في مجلد التنزيلات بالجهاز</string>
+    <string name="toast_download_saved_public">تم حفظ الملف في مجلد التنزيلات بالجهاز</string>
+    <string name="download_public_folder_fmt">مجلد التنزيلات بالجهاز / %1$s</string>
     <string name="toast_download_blocked">التنزيل غير مسموح من هذا المصدر</string>
     <string name="toast_no_app">لا يوجد تطبيق مناسب لفتح هذا الرابط</string>
     <string name="toast_cert_error">خطأ في شهادة الأمان. تم إيقاف التحميل.</string>

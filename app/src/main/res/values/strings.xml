@@ -319,6 +319,11 @@
 
     <!-- Toasts -->
     <string name="toast_download_started">Download started</string>
+    <string name="toast_download_completed">Download completed: %1$s</string>
+    <string name="toast_download_failed">Download failed: %1$s</string>
+    <string name="download_export_public">Save to device Downloads</string>
+    <string name="toast_download_saved_public">Saved to device Downloads folder</string>
+    <string name="download_public_folder_fmt">Device Downloads / %1$s</string>
     <string name="toast_download_blocked">Download not allowed from this source</string>
     <string name="toast_no_app">No suitable app to open this link</string>
     <string name="toast_cert_error">Security certificate error. Loading stopped.</string>

@@ -1,11 +1,16 @@
 package com.securebrowser.app.browser
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
+import android.util.Base64
 import android.webkit.CookieManager
 import android.webkit.URLUtil
 import androidx.core.content.FileProvider
@@ -28,6 +33,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -49,6 +55,7 @@ class BrowserDownloadManager(
     private val jobs = ConcurrentHashMap<Long, Job>()
     private val pauseFlags = ConcurrentHashMap<Long, Boolean>()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val inMemoryDataUrls = ConcurrentHashMap<Long, String>()
 
     private fun downloadsDir(): File =
         context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -69,24 +76,39 @@ class BrowserDownloadManager(
             val settings = ServiceLocator.settingsRepository
             val policy = buildPolicy(settings)
             val scheme = (UrlNormalizer.normalize(url) as? NormalizeResult.Success)?.url?.scheme
-            val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
+                ?: url.substringBefore(':', "").lowercase().takeIf { it.isNotBlank() }
+            val fileName = resolveFileName(url, contentDisposition, mimeType)
+
+            val isDataUrl = url.startsWith("data:", ignoreCase = true)
+            val storedUrl = if (isDataUrl) {
+                val mimeSnippet = mimeType ?: "application/octet-stream"
+                "data:$mimeSnippet;base64,[in-memory]"
+            } else {
+                url
+            }
 
             val decision = policy.decide(sourceAllowed, scheme, fileName, mimeType)
             when (decision) {
                 DownloadDecision.ALLOW -> {
                     val id = repository.insert(
-                        record(url, fileName, sourceUrl, mimeType, contentLength)
+                        record(storedUrl, fileName, sourceUrl, mimeType, contentLength)
                             .copy(state = DownloadRepository.STATE_DOWNLOADING)
                     )
+                    if (isDataUrl) {
+                        inMemoryDataUrls[id] = url
+                    }
                     toast(context.getString(R.string.toast_download_started))
-                    startTransfer(id)
+                    startTransfer(id, userAgent)
                 }
 
                 DownloadDecision.REQUIRES_APPROVAL -> {
-                    repository.insert(
-                        record(url, fileName, sourceUrl, mimeType, contentLength)
+                    val id = repository.insert(
+                        record(storedUrl, fileName, sourceUrl, mimeType, contentLength)
                             .copy(state = DownloadRepository.STATE_PENDING_APPROVAL)
                     )
+                    if (isDataUrl) {
+                        inMemoryDataUrls[id] = url
+                    }
                     toast(context.getString(R.string.toast_download_needs_approval))
                 }
 
@@ -94,12 +116,12 @@ class BrowserDownloadManager(
                 DownloadDecision.BLOCK_SOURCE_NOT_ALLOWED,
                 DownloadDecision.BLOCK_SCHEME -> {
                     repository.insert(
-                        record(url, fileName, sourceUrl, mimeType, contentLength)
+                        record(storedUrl, fileName, sourceUrl, mimeType, contentLength)
                             .copy(state = DownloadRepository.STATE_BLOCKED)
                     )
                     ServiceLocator.blockedActivityRepository.record(
-                        url = url,
-                        host = (UrlNormalizer.normalize(url) as? NormalizeResult.Success)?.url?.host,
+                        url = if (isDataUrl) "data:[content]" else url,
+                        host = (UrlNormalizer.normalize(url) as? NormalizeResult.Success)?.url?.host ?: "local",
                         reason = "DOWNLOAD_${decision.name}",
                         navigationType = "DOWNLOAD"
                     )
@@ -265,20 +287,47 @@ class BrowserDownloadManager(
         }
     }
 
-    /** "موقع الملف" — المسار الفعلي للملف على الجهاز. */
+    /** "موقع الملف" — المسار الفعلي للملف على الجهاز (العام أو المحلي). */
     fun fileLocation(id: Long, callback: (String?) -> Unit) {
         scope.launch(Dispatchers.IO) {
             val record = repository.findById(id)
-            val path = record?.filePath?.let { File(downloadsDir(), it).absolutePath }
-            mainHandler.post { callback(path) }
+            val localFile = record?.filePath?.let { File(downloadsDir(), it) }
+            val publicFile = localFile?.let {
+                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), it.name)
+            }
+            val displayPath = when {
+                publicFile != null && publicFile.exists() -> publicFile.absolutePath
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && localFile != null && localFile.exists() ->
+                    "${Environment.DIRECTORY_DOWNLOADS}/${localFile.name}"
+                localFile != null && localFile.exists() -> localFile.absolutePath
+                else -> null
+            }
+            mainHandler.post { callback(displayPath) }
+        }
+    }
+
+    /** تصدير صريح للملف المنزَّل إلى مجلد التنزيلات العام بالجهاز عند طلب المستخدم. */
+    fun exportToPublicDownloads(id: Long, callback: (Boolean, String?) -> Unit) {
+        scope.launch(Dispatchers.IO) {
+            val record = repository.findById(id)
+            val file = record?.filePath?.let { File(downloadsDir(), it) }
+            if (file == null || !file.exists()) {
+                mainHandler.post { callback(false, null) }
+                return@launch
+            }
+            val path = publishToPublicDownloads(context, file, record.mimeType)
+            mainHandler.post {
+                callback(path != null, path)
+            }
         }
     }
 
     // ————————————————— محرك النقل الفعلي —————————————————
 
-    private fun startTransfer(id: Long) {
+    private fun startTransfer(id: Long, customUserAgent: String? = null) {
         val job = scope.launch(Dispatchers.IO) {
             val record = repository.findById(id) ?: return@launch
+            var targetFile: File? = null
             try {
                 val existing = if ((record.downloadedBytes ?: 0) > 0) {
                     File(downloadsDir(), record.filePath ?: "").takeIf { it.exists() }
@@ -286,35 +335,80 @@ class BrowserDownloadManager(
                 val resumeFrom = existing?.length() ?: 0
 
                 val file = existing ?: uniqueFile(resolveLocalName(record))
+                targetFile = file
                 if (existing == null) {
                     file.parentFile?.mkdirs()
                     file.createNewFile()
                     repository.updateFilePath(id, file.name)
                 }
 
-                val conn = URL(record.url).openConnection() as HttpURLConnection
-                conn.connectTimeout = 20_000
-                conn.readTimeout = 30_000
-                conn.instanceFollowRedirects = true
-                if (resumeFrom > 0) {
-                    conn.setRequestProperty("Range", "bytes=$resumeFrom-")
+                // 1. معالجة روابط Data URLs في الذاكرة
+                val dataPayload = inMemoryDataUrls.remove(id)
+                if (dataPayload != null || record.url.startsWith("data:", ignoreCase = true)) {
+                    val rawData = dataPayload ?: record.url
+                    processDataUrl(id, rawData, file, record)
+                    return@launch
                 }
-                val cookie = try {
-                    CookieManager.getInstance().getCookie(record.url)
-                } catch (e: Exception) {
-                    null
-                }
-                if (!cookie.isNullOrBlank()) conn.setRequestProperty("Cookie", cookie)
-                conn.setRequestProperty("User-Agent", WEB_UA)
-                conn.connect()
 
-                val code = conn.responseCode
+                // 2. معالجة طلب الشبكة مع الـ Redirects المتعاقبة (حتى 10 مرات)
+                var currentUrl = record.url
+                var redirects = 0
+                val maxRedirects = 10
+                var conn: HttpURLConnection? = null
+                var code = 0
+
+                while (redirects < maxRedirects) {
+                    val targetUri = URL(currentUrl)
+                    val c = targetUri.openConnection() as HttpURLConnection
+                    c.connectTimeout = 20_000
+                    c.readTimeout = 30_000
+                    c.instanceFollowRedirects = false // تتبع يدوي شامل لـ HTTP<->HTTPS و 307/308
+                    c.useCaches = false
+
+                    if (resumeFrom > 0 && redirects == 0) {
+                        c.setRequestProperty("Range", "bytes=$resumeFrom-")
+                    }
+                    val cookie = try {
+                        CookieManager.getInstance().getCookie(currentUrl)
+                    } catch (e: Exception) { null }
+                    if (!cookie.isNullOrBlank()) {
+                        c.setRequestProperty("Cookie", cookie)
+                    }
+                    c.setRequestProperty("User-Agent", customUserAgent?.takeIf { it.isNotBlank() } ?: WEB_UA)
+                    c.setRequestProperty("Accept", "*/*")
+                    c.setRequestProperty("Accept-Encoding", "identity")
+                    val referer = record.sourceUrl?.takeIf { it.startsWith("http", ignoreCase = true) }
+                    if (!referer.isNullOrBlank()) {
+                        c.setRequestProperty("Referer", referer)
+                    }
+
+                    c.connect()
+                    code = c.responseCode
+
+                    // التوجيهات: 301, 302, 303, 307, 308
+                    if (code in 301..303 || code == 307 || code == 308) {
+                        val location = c.getHeaderField("Location")
+                        c.disconnect()
+                        if (location.isNullOrBlank()) {
+                            throw IllegalStateException("Redirected with empty location header ($code)")
+                        }
+                        currentUrl = URL(targetUri, location).toString()
+                        redirects++
+                        continue
+                    }
+
+                    conn = c
+                    break
+                }
+
+                val activeConn = conn ?: throw IllegalStateException("Too many redirects")
+
                 if (code !in 200..299 && code != 206) {
-                    conn.disconnect()
+                    activeConn.disconnect()
                     throw IllegalStateException("http_$code")
                 }
 
-                val serverTotal = conn.contentLengthLong
+                val serverTotal = activeConn.contentLengthLong
                 val total = if (resumeFrom > 0 && serverTotal > 0) serverTotal + resumeFrom
                 else if (serverTotal > 0) serverTotal
                 else record.sizeBytes?.takeIf { it > 0 }
@@ -325,15 +419,15 @@ class BrowserDownloadManager(
                 pauseFlags[id] = false
                 var downloaded = resumeFrom
                 var lastDbUpdate = 0L
-                // إذا لم يدعم الخادم Range (استجابة 200 رغم طلب استئناف) → إعادة من الصفر
                 val append = resumeFrom > 0 && code == 206
                 if (resumeFrom > 0 && !append) {
                     downloaded = 0
                     file.writeBytes(ByteArray(0))
                 }
-                conn.inputStream.use { input ->
+
+                activeConn.inputStream.use { input ->
                     java.io.FileOutputStream(file, append).use { output ->
-                        val buffer = ByteArray(16 * 1024)
+                        val buffer = ByteArray(32 * 1024)
                         while (true) {
                             if (pauseFlags[id] == true) {
                                 repository.updateStateAndProgress(
@@ -353,8 +447,13 @@ class BrowserDownloadManager(
                         }
                     }
                 }
+
                 repository.updateProgress(id, downloaded, total)
                 repository.updateState(id, DownloadRepository.STATE_COMPLETED)
+
+                // حفظ نسخة في مجلد التنزيلات العام بالجهاز وإشعار النظام
+                publishToPublicDownloads(context, file, record.mimeType)
+                toast(context.getString(R.string.toast_download_completed, file.name))
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -362,12 +461,124 @@ class BrowserDownloadManager(
                 if (current?.state == DownloadRepository.STATE_DOWNLOADING) {
                     repository.updateState(id, DownloadRepository.STATE_FAILED)
                 }
+                val name = targetFile?.name ?: record.fileName
+                toast(context.getString(R.string.toast_download_failed, name))
             } finally {
                 jobs.remove(id)
                 pauseFlags.remove(id)
             }
         }
         jobs[id] = job
+    }
+
+    private suspend fun processDataUrl(
+        id: Long,
+        dataUrl: String,
+        file: File,
+        record: DownloadRecordEntity
+    ) {
+        val commaIndex = dataUrl.indexOf(',')
+        if (commaIndex == -1) {
+            throw IllegalArgumentException("Invalid data URL structure")
+        }
+        val header = dataUrl.substring(0, commaIndex)
+        val dataPart = dataUrl.substring(commaIndex + 1)
+        val isBase64 = header.contains(";base64", ignoreCase = true)
+
+        if (isBase64) {
+            val bytes = Base64.decode(dataPart, Base64.DEFAULT)
+            file.writeBytes(bytes)
+            val size = bytes.size.toLong()
+            repository.updateProgress(id, size, size)
+        } else {
+            val decoded = URLDecoder.decode(dataPart, "UTF-8")
+            file.writeText(decoded)
+            val size = file.length()
+            repository.updateProgress(id, size, size)
+        }
+
+        repository.updateState(id, DownloadRepository.STATE_COMPLETED)
+        publishToPublicDownloads(context, file, record.mimeType)
+        toast(context.getString(R.string.toast_download_completed, file.name))
+    }
+
+    /**
+     * نشر أو حفظ الملف في مجلد التنزيلات العام بالجهاز (Public Downloads):
+     * - على Android 10+ (API 29+): MediaStore.Downloads (يظهر مباشرة في تطبيق التنزيلات ومدير الملفات).
+     * - على Android 9 وما قبله: Environment.getExternalStoragePublicDirectory.
+     */
+    fun publishToPublicDownloads(context: Context, sourceFile: File, mimeType: String?): String? {
+        val mime = mimeType ?: guessMime(sourceFile.name)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, sourceFile.name)
+                    put(MediaStore.Downloads.MIME_TYPE, mime)
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    ?: return null
+                resolver.openOutputStream(uri)?.use { out ->
+                    sourceFile.inputStream().use { input -> input.copyTo(out) }
+                }
+                contentValues.clear()
+                contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
+                resolver.update(uri, contentValues, null, null)
+
+                try {
+                    MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), sourceFile.name).absolutePath),
+                        arrayOf(mime),
+                        null
+                    )
+                } catch (e: Exception) {
+                    // تجاهل
+                }
+                return "${Environment.DIRECTORY_DOWNLOADS}/${sourceFile.name}"
+            } else {
+                val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (publicDir.exists() || publicDir.mkdirs()) {
+                    var candidate = File(publicDir, sourceFile.name)
+                    if (candidate.exists()) {
+                        val dot = sourceFile.name.lastIndexOf('.')
+                        val base = if (dot > 0) sourceFile.name.substring(0, dot) else sourceFile.name
+                        val ext = if (dot > 0) sourceFile.name.substring(dot) else ""
+                        var i = 1
+                        while (candidate.exists()) {
+                            candidate = File(publicDir, "$base ($i)$ext")
+                            i++
+                        }
+                    }
+                    sourceFile.copyTo(candidate, overwrite = true)
+                    MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(candidate.absolutePath),
+                        arrayOf(mime),
+                        null
+                    )
+                    return candidate.absolutePath
+                }
+            }
+        } catch (e: Exception) {
+            // فشل النسخ العام لا يقطع حفظ الملف الأصلي
+        }
+        return null
+    }
+
+    private fun resolveFileName(url: String, contentDisposition: String?, mimeType: String?): String {
+        val parsed = parseContentDisposition(contentDisposition)
+        if (!parsed.isNullOrBlank()) {
+            return sanitizeFileName(parsed)
+        }
+        val guessed = URLUtil.guessFileName(url, contentDisposition, mimeType)
+        if (guessed.isNotBlank() && !guessed.equals("downloadfile.bin", ignoreCase = true)) {
+            return sanitizeFileName(guessed)
+        }
+        val ext = guessExtension(mimeType)
+        return "download_${System.currentTimeMillis()}.$ext"
     }
 
     private fun resolveLocalName(record: DownloadRecordEntity): String {
@@ -423,5 +634,59 @@ class BrowserDownloadManager(
         private const val PROGRESS_DB_INTERVAL_MS = 500L
         private const val WEB_UA =
             "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Mobile Safari/537.36"
+
+        fun parseContentDisposition(disposition: String?): String? {
+            if (disposition.isNullOrBlank()) return null
+            try {
+                // 1. RFC 5987 / RFC 6266: filename*=charset'lang'encoded_filename
+                val extMatch = Regex("""filename\*\s*=\s*([^;]+)""", RegexOption.IGNORE_CASE).find(disposition)
+                if (extMatch != null) {
+                    val raw = extMatch.groupValues[1].trim(' ', '"', '\'')
+                    val parts = raw.split("''", limit = 2)
+                    if (parts.size == 2) {
+                        val charset = parts[0].ifBlank { "UTF-8" }
+                        val encoded = parts[1]
+                        val decoded = try {
+                            URLDecoder.decode(encoded, charset)
+                        } catch (e: Exception) {
+                            URLDecoder.decode(encoded, "UTF-8")
+                        }
+                        if (decoded.isNotBlank()) return decoded
+                    }
+                }
+                // 2. filename="name" or filename=name
+                val stdMatch = Regex("""filename\s*=\s*(?:"([^"]+)"|([^;\s]+))""", RegexOption.IGNORE_CASE).find(disposition)
+                if (stdMatch != null) {
+                    val quoted = stdMatch.groupValues[1]
+                    val unquoted = stdMatch.groupValues[2]
+                    val name = (if (quoted.isNotBlank()) quoted else unquoted).trim()
+                    if (name.isNotBlank()) return name
+                }
+            } catch (e: Exception) {
+                // fallback
+            }
+            return null
+        }
+
+        fun sanitizeFileName(name: String): String =
+            name.take(120)
+                .replace(Regex("[/\\\\:*?\"<>|]"), "_")
+                .ifBlank { "download_${System.currentTimeMillis()}" }
+
+        fun guessExtension(mimeType: String?): String = when (mimeType?.lowercase()?.substringBefore(';')?.trim()) {
+            "image/jpeg" -> "jpg"
+            "image/png" -> "png"
+            "image/gif" -> "gif"
+            "image/webp" -> "webp"
+            "image/svg+xml" -> "svg"
+            "application/pdf" -> "pdf"
+            "application/zip" -> "zip"
+            "text/plain" -> "txt"
+            "text/html" -> "html"
+            "audio/mpeg" -> "mp3"
+            "video/mp4" -> "mp4"
+            else -> "bin"
+        }
     }
 }
+

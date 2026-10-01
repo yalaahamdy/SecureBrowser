@@ -124,6 +124,40 @@ object SecureWebViewFactory {
             }
             val sourceAllowed =
                 sourceDecision is com.securebrowser.app.security.model.NavigationDecision.Allow
+
+            if (url.startsWith("blob:", ignoreCase = true)) {
+                // روابط blob: لا يمكن فتحها بشبكة خارجية — تُقرأ داخل سياق الصفحة كـ Data URI
+                val fetchBlobScript = """
+                    (function() {
+                        return fetch('$url')
+                            .then(function(res) { return res.blob(); })
+                            .then(function(blob) {
+                                return new Promise(function(resolve) {
+                                    var reader = new FileReader();
+                                    reader.onloadend = function() { resolve(reader.result); };
+                                    reader.readAsDataURL(blob);
+                                });
+                            })
+                            .catch(function(err) { return null; });
+                    })();
+                """.trimIndent()
+                webView.evaluateJavascript(fetchBlobScript) { result ->
+                    val clean = result?.trim('"', '\'', ' ')
+                    if (!clean.isNullOrBlank() && clean != "null" && clean.startsWith("data:", ignoreCase = true)) {
+                        ServiceLocator.downloadManager.handleDownload(
+                            url = clean,
+                            userAgent = userAgent,
+                            contentDisposition = contentDisposition,
+                            mimeType = mimeType,
+                            contentLength = contentLength,
+                            sourceUrl = source,
+                            sourceAllowed = sourceAllowed
+                        )
+                    }
+                }
+                return@setDownloadListener
+            }
+
             ServiceLocator.downloadManager.handleDownload(
                 url = url,
                 userAgent = userAgent,
