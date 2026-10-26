@@ -160,6 +160,7 @@ fun BrowserActivity.showTabsSheet() {
         tabsProvider = { tabsManager().tabs },
         activeIdProvider = { tabsManager().activeTab?.id },
         onSwitch = { tabId ->
+            tabsManager().activeTab?.capturePreview()
             tabsManager().switchTo(tabId)
             attachActiveTabForDialog()
             syncAddressBarForDialog()
@@ -194,21 +195,9 @@ fun BrowserActivity.showTabsSheet() {
     sheet.setOnDismissListener {
         tabsManager().removeOnTabsChangedListener(liveListener)
     }
+    // التقاط معاينة التبويب النشط الظاهر فقط (التبويبات الخلفية تحتفظ بآخر معاينة التُقطت عند مغادرتها)
+    tabsManager().activeTab?.capturePreview()
     sheet.show()
-
-    // التقاط معاينات: النشط فورًا ثم بقية التبويبات تدريجيًا (بلا تجميد الإطار)
-    lifecycleScope.launch {
-        kotlinx.coroutines.delay(60)
-        tabsManager().activeTab?.capturePreview()
-        adapter.sync()
-        kotlinx.coroutines.delay(80)
-        for (tab in tabsManager().tabs) {
-            tab.capturePreview()
-            val index = adapter.positionOf(tab.id)
-            if (index >= 0) adapter.notifyItemChanged(index)
-            kotlinx.coroutines.delay(24)
-        }
-    }
 }
 
 /** معلومات الموقع — بسيطة وواضحة (§23). */

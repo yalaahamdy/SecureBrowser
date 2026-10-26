@@ -50,6 +50,9 @@ interface DownloadRecordDao {
     @Query("UPDATE downloads SET filePath = :filePath, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateFilePath(id: Long, filePath: String, updatedAt: Long)
 
+    @Query("UPDATE downloads SET fileName = :fileName, filePath = :filePath, mimeType = COALESCE(:mimeType, mimeType), updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateFileMetadata(id: Long, fileName: String, filePath: String, mimeType: String?, updatedAt: Long)
+
     @Query("UPDATE downloads SET state = :state, downloadedBytes = :downloadedBytes, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateStateAndProgress(id: Long, state: String, downloadedBytes: Long, updatedAt: Long)
 

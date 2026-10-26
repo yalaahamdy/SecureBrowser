@@ -421,4 +421,34 @@
     <string name="shortcut_security_badge_unlisted">يتطلب موافقة الوالدين</string>
     <string name="shortcut_from_badge">تطبيق ويب</string>
     <string name="cd_shortcut_icon">معاينة أيقونة التطبيق</string>
+
+    <!-- v1.12.0: حظر محرك البحث، تنزيل الصور والروابط بالضغطة المطولة، والتحديث التلقائي من GitHub -->
+    <string name="card_block_search_engine">حظر محرك البحث</string>
+    <string name="search_engine_status_allowed">مسموح (يعمل محرك البحث)</string>
+    <string name="search_engine_status_blocked">محظور (منع البحث والصور والفيديوهات)</string>
+    <string name="block_search_engine_dialog_note">عند تفعيل حظر محرك البحث، لن يتمكن المستخدم من فتح جوجل أو بينج أو دك دك جو للبحث عن أي شيء أو تصفح وتحميل الصور ومشاهدة الفيديوهات من نتائج البحث.</string>
+    <string name="toast_search_engine_blocked">محرك البحث محظور من إعدادات الرقابة الأبوية</string>
+
+    <string name="context_download_image">تنزيل الصورة إلى الهاتف</string>
+    <string name="context_open_image_new_tab">فتح الصورة في تبويب جديد</string>
+    <string name="context_copy_image_url">نسخ رابط الصورة</string>
+    <string name="context_download_link">تنزيل الملف / الرابط</string>
+    <string name="context_open_link_new_tab">فتح الرابط في تبويب جديد</string>
+    <string name="context_copy_link_url">نسخ عنوان الرابط</string>
+
+    <string name="card_check_updates">تحديث التطبيق تلقائيًا</string>
+    <string name="update_current_version_fmt">الإصدار الحالي: v%1$s</string>
+    <string name="update_checking">جارٍ التحقق من وجود تحديثات على GitHub…</string>
+    <string name="update_available_title">تحديث جديد متوفر (%1$s)</string>
+    <string name="update_available_default_notes">يتوفر إصدار أحدث من المتصفح الآمن على GitHub يتضمن تحسينات في الأداء والأمان.</string>
+    <string name="update_now">تحديث الآن</string>
+    <string name="update_later">لاحقًا</string>
+    <string name="update_downloading_title">جارٍ تنزيل التحديث %1$s…</string>
+    <string name="update_downloading_progress">%1$d%% (%2$s / %3$s)</string>
+    <string name="update_already_latest">أنت تستخدم أحدث إصدار بالفعل (v%1$s)</string>
+    <string name="update_check_failed">تعذّر التحقق من التحديثات حاليًا، تحقق من اتصال الإنترنت</string>
+    <string name="update_download_failed">تعذّر تنزيل حزمة التحديث، حاول مرة أخرى</string>
+    <string name="update_install_permission_title">السماح بتثبيت التحديث</string>
+    <string name="update_install_permission_msg">يرجى منح صلاحية تثبيت التطبيقات للمتصفح الآمن حتى يتم تثبيت التحديث الجديد تلقائيًا.</string>
+    <string name="update_grant_permission">منح الصلاحية</string>
 </resources>

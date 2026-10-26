@@ -102,12 +102,16 @@ object ServiceLocator {
             whiteListEngine = WhiteListEngine(
                 WhiteListRuleProvider { whiteListRepository.currentRules() }
             )
-            // v1.9.0 — بوابة الشبكة المحلية موصولة بإعداد الوالدين (الافتراضي مفعّل)
+            // v1.9.0 — بوابة الشبكة المحلية + v1.12.0 — بوابة حظر محرك البحث
             securityEngine = SecurityEngine(
                 whiteListEngine,
                 policyManager,
-                infraHostsProvider = { searchEngineInfraHosts(settingsRepository.searchEngine) },
-                localNetworkAllowed = { settingsRepository.allowLocalNetwork }
+                infraHostsProvider = {
+                    if (settingsRepository.blockSearchEngine) emptySet()
+                    else searchEngineInfraHosts(settingsRepository.searchEngine)
+                },
+                localNetworkAllowed = { settingsRepository.allowLocalNetwork },
+                searchEngineBlocked = { settingsRepository.blockSearchEngine }
             )
 
             downloadManager = BrowserDownloadManager(appContext, downloadRepository, applicationScope)

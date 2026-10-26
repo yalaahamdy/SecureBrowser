@@ -28,7 +28,9 @@ class SecurityEngine(
     private val policyManager: PolicyManager,
     private val infraHostsProvider: () -> Set<String> = { emptySet() },
     /** v1.9.0 — بوابة الوالد للسماح بالروابط المحلية (الافتراضي مفعّل). */
-    private val localNetworkAllowed: () -> Boolean = { true }
+    private val localNetworkAllowed: () -> Boolean = { true },
+    /** v1.12.0 — بوابة الوالد لحظر محركات البحث بالكامل (جوجل/بينج/دك دك جو والصور والفيديوهات عليها). */
+    private val searchEngineBlocked: () -> Boolean = { false }
 ) {
 
     fun validate(
@@ -147,6 +149,17 @@ class SecurityEngine(
             return NavigationDecision.Allow(parsed)
         }
 
+        // 4.2) حظر محرك البحث (v1.12.0 — طلب المستخدم الصريح):
+        // إذا فعّل الوالد خيار "حظر محرك البحث"، يُحظر الدخول إلى جوجل وبقية محركات البحث
+        // والبحث عن الصور أو مشاهدة الفيديوهات عليها حتى لو أُضيفت سابقًا للقائمة البيضاء.
+        if (searchEngineBlocked() && isSearchEngineUrl(parsed)) {
+            return NavigationDecision.Block(
+                BlockReason.NOT_WHITELISTED,
+                parsed.host.ifEmpty { parsed.raw.take(120) },
+                rawUrl
+            )
+        }
+
         // 4.5) الشبكة المحلية (v1.9.0 — طلب المستخدم الصريح):
         // روابط الراوتر/NAS/الأجهزة المنزلية (192.168.*، 10.*، 172.16-31.*،
         // 127.*، [::1]، fe80::، fc/fd::، .local، .lan، .home.arpa، .internal،
@@ -186,5 +199,50 @@ class SecurityEngine(
 
     companion object {
         private const val MAX_INTENT_DEPTH = 2
+        private val GOOGLE_SEARCH_HOST_REGEX =
+            Regex("""^(www\.|m\.|images\.|video\.|videos\.|lens\.|encrypted\.)?google(\.[a-z]{2,3}){1,2}$""")
+
+        private val OTHER_SEARCH_HOSTS = listOf(
+            "duckduckgo.com",
+            "bing.com",
+            "search.yahoo.com",
+            "search.brave.com",
+            "ecosia.org",
+            "startpage.com",
+            "qwant.com",
+            "yandex.com",
+            "yandex.ru",
+            "baidu.com",
+            "ask.com",
+            "aol.com"
+        )
+
+        /**
+         * يحدد ما إذا كان العنوان يمثّل محرك بحث (جوجل، بينج، دك دك جو، ياهو، ياندكس، إلخ)
+         * أو مسارات البحث والصور والفيديوهات التابعة له.
+         */
+        fun isSearchEngineUrl(parsed: ParsedUrl): Boolean {
+            val host = parsed.host.lowercase()
+            if (host.isEmpty()) return false
+            if (OTHER_SEARCH_HOSTS.any { h -> host == h || host.endsWith(".$h") }) {
+                return true
+            }
+            if (GOOGLE_SEARCH_HOST_REGEX.matches(host)) {
+                return true
+            }
+            val path = parsed.path.lowercase()
+            if (host.contains(".google.") && (
+                    path.startsWith("/search") ||
+                    path.startsWith("/imgres") ||
+                    path.startsWith("/imghp") ||
+                    path.startsWith("/videohp") ||
+                    path.startsWith("/webhp") ||
+                    path.startsWith("/url")
+                )
+            ) {
+                return true
+            }
+            return false
+        }
     }
 }

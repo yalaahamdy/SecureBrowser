@@ -36,6 +36,9 @@ class DownloadRepository(private val dao: DownloadRecordDao) {
     suspend fun updateFilePath(id: Long, filePath: String) =
         dao.updateFilePath(id, filePath, System.currentTimeMillis())
 
+    suspend fun updateFileMetadata(id: Long, fileName: String, filePath: String, mimeType: String?) =
+        dao.updateFileMetadata(id, fileName, filePath, mimeType, System.currentTimeMillis())
+
     suspend fun updateStateAndProgress(id: Long, state: String, downloadedBytes: Long) =
         dao.updateStateAndProgress(id, state, downloadedBytes, System.currentTimeMillis())
 

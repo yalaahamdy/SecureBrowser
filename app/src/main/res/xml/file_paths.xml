@@ -8,4 +8,15 @@
     <files-path
         name="internal_downloads"
         path="downloads/" />
+    <!-- مجلد التنزيلات الافتراضي العام للهاتف (/storage/emulated/0/Download) -->
+    <external-path
+        name="public_downloads"
+        path="Download/" />
+    <!-- مجلدات حزم التحديثات التلقائية (APK Updates) -->
+    <cache-path
+        name="updates_cache"
+        path="updates/" />
+    <external-cache-path
+        name="updates_external_cache"
+        path="updates/" />
 </paths>

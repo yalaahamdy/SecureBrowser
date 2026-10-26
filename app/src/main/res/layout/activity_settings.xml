@@ -64,11 +64,19 @@
                     layout="@layout/row_action_card" />
 
                 <include
+                    android:id="@+id/cardBlockSearchEngine"
+                    layout="@layout/row_action_card" />
+
+                <include
                     android:id="@+id/cardHomepage"
                     layout="@layout/row_action_card" />
 
                 <include
                     android:id="@+id/cardZoom"
+                    layout="@layout/row_action_card" />
+
+                <include
+                    android:id="@+id/cardAppUpdate"
                     layout="@layout/row_action_card" />
             </LinearLayout>
 

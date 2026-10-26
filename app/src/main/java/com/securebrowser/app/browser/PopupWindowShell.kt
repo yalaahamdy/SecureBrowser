@@ -48,6 +48,12 @@ class PopupWindowShell(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var destroyed = false
     private var idleDestroyPosted = false
+    private val blankAdoptRunnable = Runnable {
+        if (!destroyed && adopted.compareAndSet(false, true)) {
+            val type = if (isUserGesture) NavigationType.POPUP else NavigationType.NEW_WINDOW
+            decideFirstNavigation("about:blank", type)
+        }
+    }
 
     // ————————————————— العميل المؤقت (قبل الاعتماد) —————————————————
     // تُعرَّف قبل webView لأن مُهيّئه يستخدمهما (ترتيب التهيئة في Kotlin).
@@ -73,11 +79,12 @@ class PopupWindowShell(
                 isUserGesture -> NavigationType.POPUP
                 else -> NavigationType.NEW_WINDOW
             }
+            cancelBlankAdoption()
             if (adopted.compareAndSet(false, true)) {
                 // أول تنقل إطار رئيسي — القرار المصيري (متزامن)
                 return decideFirstNavigation(raw, type)
             }
-            // اعتماد سبق القرار له (نظريًا لا يحدث — التبديل متزامن على UI thread):
+            // اعتماد سبق القرار له (مثل نافذة about:blank اعتُمدت ثم تنقلت):
             // نفس قواعد العميل الحقيقي حتى لا يمر أي تنقل بلا فحص.
             val decision = controller.securityEngine().validate(raw, type)
             return controller.handleMainFrameDecision(view, decision, raw, type)
@@ -96,9 +103,13 @@ class PopupWindowShell(
                 controller.onPageStarted(view, raw)
                 return
             }
-            // window.open بدون رابط: أول ظهور يكون about:blank عبر onPageStarted
-            // فقط (لا يمر بـ shouldOverrideUrlLoading) — اعتماد فوري كي يبقى
-            // مرجع window حيًا للموقع (تسجيل/OAuth/document.write).
+            if (raw.equals("about:blank", ignoreCase = true)) {
+                // نمهل النافذة لحظة قصيرة (200ms) ليصل الرابط الفعلي عبر shouldOverrideUrlLoading
+                // أو يبدأ التنزيل دون فتح تبويب أبيض فارغ؛ وإن كانت window.open("") حقيقية تُعتمد بعدها.
+                scheduleBlankAdoption()
+                return
+            }
+            cancelBlankAdoption()
             val type = if (isUserGesture) NavigationType.POPUP else NavigationType.NEW_WINDOW
             if (adopted.compareAndSet(false, true)) {
                 decideFirstNavigation(raw, type)
@@ -125,12 +136,13 @@ class PopupWindowShell(
     private val provisionalChromeClient = object : WebChromeClient() {
 
         override fun onProgressChanged(view: WebView?, newProgress: Int) {
-            // شبكة أمان: أي محتوى بدأ التحميل قبل onPageStarted → اعتماد فوري
+            // شبكة أمان: أي محتوى فعلي (غير about:blank) بدأ التحميل قبل onPageStarted → اعتماد فوري
             if (!adopted.get() && newProgress > 0) {
                 val raw = view?.url ?: return
-                if (raw.isNotBlank() &&
+                if (raw.isNotBlank() && !raw.equals("about:blank", ignoreCase = true) &&
                     adopted.compareAndSet(false, true)
                 ) {
+                    cancelBlankAdoption()
                     val type = if (isUserGesture) NavigationType.POPUP else NavigationType.NEW_WINDOW
                     decideFirstNavigation(raw, type)
                 }
@@ -154,20 +166,36 @@ class PopupWindowShell(
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         webChromeClient = provisionalChromeClient
         webViewClient = provisionalClient
+        // v1.12.0 — ربط مستمع التنزيلات منذ اللحظة الأولى لالتقاط تنزيلات target="_blank" فورًا
+        SecureWebViewFactory.attachDownloadListener(this, controller) {
+            if (!adopted.get()) {
+                destroy()
+            }
+        }
     }
 
     // ————————————————— القرار المصيري —————————————————
 
     private fun decideFirstNavigation(raw: String, type: NavigationType): Boolean {
+        cancelBlankAdoption()
         cancelIdleDestroy()
         // قرار متزامن — بلا coroutine ولا refresh: النتيجة فورية دائمًا
-        val decision = controller.securityEngine().validate(raw, type)
         val cancel = controller.handlePopupFirstNavigation(webView, raw, type, isUserGesture)
         if (cancel) destroy() // لم تُعتمد → تدمير فوري (المالك الجديد هو التبويب عند الاعتماد)
         return cancel
     }
 
     // ————————————————— دورة الحياة —————————————————
+
+    private fun scheduleBlankAdoption() {
+        if (destroyed || adopted.get()) return
+        mainHandler.removeCallbacks(blankAdoptRunnable)
+        mainHandler.postDelayed(blankAdoptRunnable, 200L)
+    }
+
+    private fun cancelBlankAdoption() {
+        mainHandler.removeCallbacks(blankAdoptRunnable)
+    }
 
     /**
      * مؤقت إسكات: نافذة لم تُطلق أي تنقل/محتوى خلال المهلة (window.open
@@ -192,6 +220,7 @@ class PopupWindowShell(
     fun destroy() {
         if (destroyed) return
         destroyed = true
+        cancelBlankAdoption()
         cancelIdleDestroy()
         try {
             webView.stopLoading()

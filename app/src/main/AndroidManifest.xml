@@ -4,6 +4,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- v1.12.0: حفظ الملفات في مجلد التنزيلات العام على أندرويد 9 وما قبله، وتثبيت التحديثات التلقائية -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- v1.4.0: فتح بوابة الوالدين بالبصمة (اختياري للوالد) — صلاحية عادية بلا موافقة مستخدم -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
@@ -109,6 +117,7 @@
         android:label="@string/app_name"
         android:localeConfig="@xml/locales_config"
         android:roundIcon="@mipmap/ic_launcher_round"
+        android:requestLegacyExternalStorage="true"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.SecureBrowser"

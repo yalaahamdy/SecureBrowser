@@ -53,15 +53,18 @@ class TabSession(
      */
     fun capturePreview() {
         try {
+            if (!webView.isShown) return
             val w = webView.width
             val h = webView.height
             if (w <= 0 || h <= 0) return
-            val full = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-            webView.draw(Canvas(full))
             val targetW = 320
-            val targetH = (320.0 * h / w).toInt().coerceAtLeast(160)
-            val scaled = Bitmap.createScaledBitmap(full, targetW, targetH, true)
-            if (scaled != full) full.recycle()
+            val targetH = (320.0 * h / w).toInt().coerceIn(160, 720)
+            val scaled = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(scaled)
+            val scaleX = targetW.toFloat() / w.toFloat()
+            val scaleY = targetH.toFloat() / h.toFloat()
+            canvas.scale(scaleX, scaleY)
+            webView.draw(canvas)
             preview = scaled
         } catch (e: Exception) {
             // المعاينة اختيارية — لا تؤثر على التصفح

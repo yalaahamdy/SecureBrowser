@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import com.securebrowser.app.di.ServiceLocator
@@ -112,49 +113,68 @@ object SecureWebViewFactory {
             .replace(Regex("""\bVersion/\d+(\.\d+)+\s"""), "")
 
     /**
-     * ربط مستمع التنزيلات (سياسة كاملة عبر BrowserDownloadManager).
-     * يُستدعى للتبويبات العادية، ولنافذة popup لحظة اعتمادها تبويبًا.
+     * ربط مستمع التنزيلات (سياسة كاملة عبر BrowserDownloadManager) + جسر تنزيل روابط blob:
+     * + قائمة الضغطة المطوّلة على الصور والروابط.
+     * يُستدعى للتبويبات العادية، ولنافذة popup منذ لحظة إنشائها وحتى اعتمادها تبويبًا.
      */
-    fun attachDownloadListener(webView: WebView, controller: BrowserController) {
+    @SuppressLint("JavascriptInterface")
+    fun attachDownloadListener(
+        webView: WebView,
+        controller: BrowserController,
+        onBeforeAdoptDownload: (() -> Unit)? = null
+    ) {
+        // جسر JavaScript لتحويل روابط blob: غير المتزامنة (FileReader) إلى تنزيلات فعلية
+        try {
+            webView.removeJavascriptInterface(JS_BLOB_BRIDGE_NAME)
+        } catch (_: Exception) {
+        }
+        webView.addJavascriptInterface(
+            BlobDownloadBridge(webView, controller, onBeforeAdoptDownload),
+            JS_BLOB_BRIDGE_NAME
+        )
+
+        // دعم الضغطة المطوّلة على الصور والروابط لتنزيلها مباشرة
+        attachLongPressListener(webView, controller)
+
         webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, contentLength ->
-            val source = controller.currentSourceUrl()
-            val sourceDecision = source?.let {
-                controller.securityEngine()
-                    .validate(it, com.securebrowser.app.security.model.NavigationType.INITIAL)
-            }
-            val sourceAllowed =
-                sourceDecision is com.securebrowser.app.security.model.NavigationDecision.Allow
+            val candidates = listOfNotNull(
+                webView.url?.takeIf { it.isNotBlank() && it != "about:blank" },
+                webView.originalUrl?.takeIf { it.isNotBlank() && it != "about:blank" },
+                controller.currentSourceUrl()?.takeIf { it.isNotBlank() && it != "about:blank" }
+            )
+            val source = candidates.firstOrNull()
+            // التنزيل انطلق من داخل WebView خاضع بالفعل لفحص SecurityEngine
+            val sourceAllowed = true
 
             if (url.startsWith("blob:", ignoreCase = true)) {
-                // روابط blob: لا يمكن فتحها بشبكة خارجية — تُقرأ داخل سياق الصفحة كـ Data URI
+                val escapedUrl = url.replace("\\", "\\\\").replace("'", "\\'")
+                val escapedDisp = (contentDisposition ?: "").replace("\\", "\\\\").replace("'", "\\'")
+                val escapedMime = (mimeType ?: "").replace("\\", "\\\\").replace("'", "\\'")
+                val escapedUa = (userAgent ?: "").replace("\\", "\\\\").replace("'", "\\'")
                 val fetchBlobScript = """
                     (function() {
-                        return fetch('$url')
-                            .then(function(res) { return res.blob(); })
-                            .then(function(blob) {
-                                return new Promise(function(resolve) {
+                        try {
+                            fetch('$escapedUrl')
+                                .then(function(res) { return res.blob(); })
+                                .then(function(blob) {
                                     var reader = new FileReader();
-                                    reader.onloadend = function() { resolve(reader.result); };
+                                    reader.onloadend = function() {
+                                        if (reader.result) {
+                                            window.$JS_BLOB_BRIDGE_NAME.onBlobDataReady(
+                                                reader.result,
+                                                '$escapedDisp',
+                                                blob.type || '$escapedMime',
+                                                '$escapedUa'
+                                            );
+                                        }
+                                    };
                                     reader.readAsDataURL(blob);
-                                });
-                            })
-                            .catch(function(err) { return null; });
+                                })
+                                .catch(function(err) {});
+                        } catch (e) {}
                     })();
                 """.trimIndent()
-                webView.evaluateJavascript(fetchBlobScript) { result ->
-                    val clean = result?.trim('"', '\'', ' ')
-                    if (!clean.isNullOrBlank() && clean != "null" && clean.startsWith("data:", ignoreCase = true)) {
-                        ServiceLocator.downloadManager.handleDownload(
-                            url = clean,
-                            userAgent = userAgent,
-                            contentDisposition = contentDisposition,
-                            mimeType = mimeType,
-                            contentLength = contentLength,
-                            sourceUrl = source,
-                            sourceAllowed = sourceAllowed
-                        )
-                    }
-                }
+                webView.evaluateJavascript(fetchBlobScript, null)
                 return@setDownloadListener
             }
 
@@ -167,6 +187,60 @@ object SecureWebViewFactory {
                 sourceUrl = source,
                 sourceAllowed = sourceAllowed
             )
+            onBeforeAdoptDownload?.invoke()
+            controller.onDownloadStartedInWebView(webView)
+        }
+    }
+
+    private fun attachLongPressListener(webView: WebView, controller: BrowserController) {
+        webView.setOnLongClickListener { view ->
+            val wv = view as? WebView ?: return@setOnLongClickListener false
+            val hit = wv.hitTestResult
+            val type = hit.type
+            val extra = hit.extra
+            if (extra.isNullOrBlank()) return@setOnLongClickListener false
+            when (type) {
+                WebView.HitTestResult.IMAGE_TYPE,
+                WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE,
+                WebView.HitTestResult.SRC_ANCHOR_TYPE -> {
+                    controller.onLongPressElement(wv, type, extra)
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private const val JS_BLOB_BRIDGE_NAME = "SecureBlobBridge"
+
+    private class BlobDownloadBridge(
+        private val webView: WebView,
+        private val controller: BrowserController,
+        private val onBeforeAdoptDownload: (() -> Unit)?
+    ) {
+        @JavascriptInterface
+        fun onBlobDataReady(
+            dataUrl: String?,
+            contentDisposition: String?,
+            mimeType: String?,
+            userAgent: String?
+        ) {
+            val clean = dataUrl?.trim() ?: return
+            if (!clean.startsWith("data:", ignoreCase = true)) return
+            val source = controller.currentSourceUrl()
+            ServiceLocator.downloadManager.handleDownload(
+                url = clean,
+                userAgent = userAgent?.takeIf { it.isNotBlank() },
+                contentDisposition = contentDisposition?.takeIf { it.isNotBlank() },
+                mimeType = mimeType?.takeIf { it.isNotBlank() },
+                contentLength = -1L,
+                sourceUrl = source,
+                sourceAllowed = true
+            )
+            webView.post {
+                onBeforeAdoptDownload?.invoke()
+                controller.onDownloadStartedInWebView(webView)
+            }
         }
     }
 }

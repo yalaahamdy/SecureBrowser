@@ -56,5 +56,28 @@ class BrowserDownloadManagerTest {
         assertEquals("jpg", BrowserDownloadManager.guessExtension("image/jpeg"))
         assertEquals("zip", BrowserDownloadManager.guessExtension("application/zip"))
         assertEquals("mp4", BrowserDownloadManager.guessExtension("video/mp4"))
+        assertEquals("apk", BrowserDownloadManager.guessExtension("application/vnd.android.package-archive"))
+    }
+
+    @Test
+    fun isNewerVersion_comparesSemanticVersionsCorrectly() {
+        org.junit.Assert.assertTrue(com.securebrowser.app.update.AppUpdateManager.isNewerVersion("v1.12.0", "1.11.0"))
+        org.junit.Assert.assertTrue(com.securebrowser.app.update.AppUpdateManager.isNewerVersion("1.12.1", "1.12.0"))
+        org.junit.Assert.assertTrue(com.securebrowser.app.update.AppUpdateManager.isNewerVersion("2.0.0", "1.99.9"))
+        org.junit.Assert.assertFalse(com.securebrowser.app.update.AppUpdateManager.isNewerVersion("1.12.0", "1.12.0"))
+        org.junit.Assert.assertFalse(com.securebrowser.app.update.AppUpdateManager.isNewerVersion("1.11.0", "1.12.0"))
+    }
+
+    @Test
+    fun isSearchEngineUrl_detectsGoogleBingDuckDuckGoWhilePreservingClassroom() {
+        fun parse(raw: String) =
+            (com.securebrowser.app.core.url.UrlNormalizer.normalize(raw) as com.securebrowser.app.core.url.NormalizeResult.Success).url
+
+        org.junit.Assert.assertTrue(com.securebrowser.app.security.SecurityEngine.isSearchEngineUrl(parse("https://www.google.com/search?q=test")))
+        org.junit.Assert.assertTrue(com.securebrowser.app.security.SecurityEngine.isSearchEngineUrl(parse("https://images.google.com/")))
+        org.junit.Assert.assertTrue(com.securebrowser.app.security.SecurityEngine.isSearchEngineUrl(parse("https://www.bing.com/images")))
+        org.junit.Assert.assertTrue(com.securebrowser.app.security.SecurityEngine.isSearchEngineUrl(parse("https://duckduckgo.com/?q=hello")))
+        org.junit.Assert.assertFalse(com.securebrowser.app.security.SecurityEngine.isSearchEngineUrl(parse("https://classroom.google.com/u/0/h")))
+        org.junit.Assert.assertFalse(com.securebrowser.app.security.SecurityEngine.isSearchEngineUrl(parse("https://drive.google.com/drive/my-drive")))
     }
 }

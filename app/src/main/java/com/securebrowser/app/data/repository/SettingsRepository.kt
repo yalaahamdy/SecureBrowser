@@ -109,6 +109,13 @@ class SettingsRepository(
      */
     val allowLocalNetwork: Boolean get() = bool("allow_local_network", true)
 
+    /**
+     * v1.12.0 — حظر محرك البحث بالكامل (جوجل / بينج / دك دك جو):
+     * عند التفعيل يُلغى استثناء محرك البحث ويُمنع الدخول الدائم إلى صفحات البحث
+     * أو البحث عن الصور والفيديوهات عبر شريط العنوان أو الروابط (إلا في وضع الوصول المؤقت للوالد).
+     */
+    val blockSearchEngine: Boolean get() = bool("block_search_engine", false)
+
     companion object {
         const val MIN_ZOOM = 50
         const val MAX_ZOOM = 200

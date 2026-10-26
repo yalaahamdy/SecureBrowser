@@ -36,8 +36,16 @@ class SettingsActivity : AppCompatActivity() {
         bindCard(binding.cardTheme, R.drawable.ic_gear, getString(R.string.card_theme)) { showThemeDialog() }
         bindCard(binding.cardLanguage, R.drawable.ic_globe, getString(R.string.card_language)) { showLanguageDialog() }
         bindCard(binding.cardSearchEngine, R.drawable.ic_search, getString(R.string.card_search_engine)) { showSearchEngineDialog() }
+        bindCard(binding.cardBlockSearchEngine, R.drawable.ic_shield_block, getString(R.string.card_block_search_engine)) {
+            com.securebrowser.app.ui.PinGate.show(this) {
+                showBlockSearchEngineDialog()
+            }
+        }
         bindCard(binding.cardHomepage, R.drawable.ic_home, getString(R.string.card_homepage)) { showHomepageDialog() }
         bindCard(binding.cardZoom, R.drawable.ic_zoom_in, getString(R.string.card_default_zoom)) { showZoomDialog() }
+        bindCard(binding.cardAppUpdate, R.drawable.ic_download, getString(R.string.card_check_updates)) {
+            com.securebrowser.app.update.AppUpdateManager.checkForUpdates(this, manual = true)
+        }
 
         refreshValues()
     }
@@ -45,6 +53,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshValues()
+        com.securebrowser.app.update.AppUpdateManager.onActivityResume(this)
     }
 
     private val settings get() = ServiceLocator.settingsRepository
@@ -55,13 +64,21 @@ class SettingsActivity : AppCompatActivity() {
         binding.cardLanguage.cardValue.isVisible = true
         binding.cardLanguage.cardValue.text = languageLabel(settings.language)
         binding.cardSearchEngine.cardValue.isVisible = true
-        binding.cardSearchEngine.cardValue.text = engineLabel(settings.searchEngine)
+        binding.cardSearchEngine.cardValue.text =
+            if (settings.blockSearchEngine) getString(R.string.search_engine_status_blocked)
+            else engineLabel(settings.searchEngine)
+        binding.cardBlockSearchEngine.cardValue.isVisible = true
+        binding.cardBlockSearchEngine.cardValue.text =
+            getString(if (settings.blockSearchEngine) R.string.search_engine_status_blocked else R.string.search_engine_status_allowed)
         binding.cardHomepage.cardValue.isVisible = true
         binding.cardHomepage.cardValue.text =
             if (settings.homepage == "start") getString(R.string.homepage_start)
             else settings.homepage
         binding.cardZoom.cardValue.isVisible = true
         binding.cardZoom.cardValue.text = getString(R.string.zoom_percent, settings.zoom)
+        binding.cardAppUpdate.cardValue.isVisible = true
+        binding.cardAppUpdate.cardValue.text =
+            getString(R.string.update_current_version_fmt, com.securebrowser.app.update.AppUpdateManager.currentVersionName(this))
     }
 
     private fun bindCard(card: RowActionCardBinding, iconRes: Int, title: String, onClick: () -> Unit) {
@@ -132,6 +149,10 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun showSearchEngineDialog() {
+        if (settings.blockSearchEngine) {
+            android.widget.Toast.makeText(this, R.string.toast_search_engine_blocked, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         val values = arrayOf("duckduckgo", "google", "bing")
         val labels = values.map { engineLabel(it) }.toTypedArray()
         AlertDialog.Builder(this)
@@ -141,6 +162,25 @@ class SettingsActivity : AppCompatActivity() {
                     settings.put("search_engine", values[which])
                     refreshValues()
                 }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun showBlockSearchEngineDialog() {
+        val options = arrayOf(
+            getString(R.string.search_engine_status_allowed),
+            getString(R.string.search_engine_status_blocked)
+        )
+        val checked = if (settings.blockSearchEngine) 1 else 0
+        AlertDialog.Builder(this)
+            .setTitle(R.string.card_block_search_engine)
+            .setSingleChoiceItems(options, checked) { dialog, which ->
+                lifecycleScope.launch {
+                    settings.putBool("block_search_engine", which == 1)
+                    refreshValues()
+                }
+                dialog.dismiss()
             }
             .setNegativeButton(R.string.cancel, null)
             .show()

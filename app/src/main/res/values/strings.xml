@@ -421,4 +421,34 @@
     <string name="shortcut_security_badge_unlisted">Requires parental approval</string>
     <string name="shortcut_from_badge">Web App</string>
     <string name="cd_shortcut_icon">Website app icon preview</string>
+
+    <!-- v1.12.0: Block Search Engine, Long-Press Downloads & GitHub Auto-Update -->
+    <string name="card_block_search_engine">Search engine access</string>
+    <string name="search_engine_status_allowed">Allowed</string>
+    <string name="search_engine_status_blocked">Blocked (No search / images / videos)</string>
+    <string name="block_search_engine_dialog_note">Blocking the search engine prevents opening Google, Bing, or DuckDuckGo to search for web pages, images, or videos.</string>
+    <string name="toast_search_engine_blocked">Search engine is blocked by parental controls</string>
+
+    <string name="context_download_image">Download image</string>
+    <string name="context_open_image_new_tab">Open image in new tab</string>
+    <string name="context_copy_image_url">Copy image link</string>
+    <string name="context_download_link">Download file / link</string>
+    <string name="context_open_link_new_tab">Open link in new tab</string>
+    <string name="context_copy_link_url">Copy link address</string>
+
+    <string name="card_check_updates">App updates (GitHub)</string>
+    <string name="update_current_version_fmt">Current version: v%1$s</string>
+    <string name="update_checking">Checking for updates on GitHub…</string>
+    <string name="update_available_title">New update available (%1$s)</string>
+    <string name="update_available_default_notes">A new version of Secure Browser is available on GitHub Releases with stability and security improvements.</string>
+    <string name="update_now">Update now</string>
+    <string name="update_later">Later</string>
+    <string name="update_downloading_title">Downloading update %1$s…</string>
+    <string name="update_downloading_progress">%1$d%% (%2$s / %3$s)</string>
+    <string name="update_already_latest">You have the latest version (v%1$s)</string>
+    <string name="update_check_failed">Could not check for updates right now</string>
+    <string name="update_download_failed">Failed to download update package</string>
+    <string name="update_install_permission_title">Allow installing updates</string>
+    <string name="update_install_permission_msg">Please allow Secure Browser to install update packages from this source so the update can complete automatically.</string>
+    <string name="update_grant_permission">Allow in Settings</string>
 </resources>

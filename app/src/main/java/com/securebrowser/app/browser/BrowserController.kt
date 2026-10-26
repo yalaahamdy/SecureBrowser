@@ -92,4 +92,10 @@ interface BrowserController {
     fun recordBlockedNavigation(url: String?, reason: BlockReason, type: NavigationType)
 
     fun currentSourceUrl(): String?
+
+    /** يُستدعى عند بدء تنزيل داخل WebView (لإغلاق تبويب الـ popup الفارغ المؤقت تلقائيًا). */
+    fun onDownloadStartedInWebView(webView: WebView) = Unit
+
+    /** قائمة الضغطة المطوّلة على صورة أو رابط داخل الصفحة (لتنزيل الصور والملفات مباشرة). */
+    fun onLongPressElement(webView: WebView, hitType: Int, extra: String) = Unit
 }

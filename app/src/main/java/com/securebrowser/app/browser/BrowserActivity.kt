@@ -159,37 +159,42 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         val intentUrl = intent?.getStringExtra(EXTRA_OPEN_URL) ?: intent?.dataString
         if (intentUrl != null) {
             tabsManager.createTab(activate = true)
+            attachActiveTab()
             lifecycleScope.launch { navigateInternal(intentUrl, NavigationType.TYPED) }
         } else {
             restoreSessionOrCreateTab()
         }
         updateTabsChip()
+
+        // v1.12.0 — فحص تلقائي لوجود تحديث جديد للتطبيق على GitHub Releases
+        com.securebrowser.app.update.AppUpdateManager.checkForUpdates(this, manual = false)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        com.securebrowser.app.update.AppUpdateManager.onActivityResume(this)
     }
 
     // ————————————————— استعادة الجلسة —————————————————
 
     private fun restoreSessionOrCreateTab() {
         val specs = tabsManager.loadSessionSpecs()
-        if (specs == null) {
+        if (specs.isNullOrEmpty()) {
             tabsManager.createTab(activate = true)
+            attachActiveTab()
             showStartPage()
             return
         }
-        var first = true
         for (spec in specs) {
-            val tab = tabsManager.createTab(activate = spec.isActive, restoreUrl = spec.url) ?: break
-            if (first) {
-                first = false
-                val url = spec.url
-                if (url != null) {
-                    lifecycleScope.launch { navigateInternal(url, NavigationType.INITIAL) }
-                } else {
-                    showStartPage()
-                }
-            }
+            tabsManager.createTab(activate = spec.isActive, restoreUrl = spec.url) ?: break
         }
         if (tabsManager.tabs.isEmpty()) {
             tabsManager.createTab(activate = true)
+        }
+        // ربط التبويب النشط بالحاوية وتحميل رابطه المستعاد تلقائيًا
+        attachActiveTab()
+        val active = tabsManager.activeTab
+        if (active != null && active.uiState.url.isNullOrBlank() && active.pendingRestoreUrl == null) {
             showStartPage()
         }
     }
@@ -356,7 +361,17 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             val target = resolveInput(input)
             when (target) {
                 is ResolvedInput.Url -> navigateInternal(target.url, NavigationType.TYPED)
-                is ResolvedInput.Search -> navigateInternal(target.searchUrl, NavigationType.TYPED)
+                is ResolvedInput.Search -> {
+                    if (ServiceLocator.settingsRepository.blockSearchEngine &&
+                        !ServiceLocator.temporaryAccess.isActive()
+                    ) {
+                        recordBlockedNavigation(target.searchUrl, BlockReason.NOT_WHITELISTED, NavigationType.TYPED)
+                        Toast.makeText(this@BrowserActivity, R.string.toast_search_engine_blocked, Toast.LENGTH_SHORT).show()
+                        showErrorBlockScreen(target.searchUrl, getString(R.string.toast_search_engine_blocked))
+                    } else {
+                        navigateInternal(target.searchUrl, NavigationType.TYPED)
+                    }
+                }
             }
         }
     }
@@ -406,7 +421,17 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             ServiceLocator.whiteListEngine.refresh()
             when (val target = resolveInput(text)) {
                 is ResolvedInput.Url -> navigateInternal(target.url, NavigationType.TYPED)
-                is ResolvedInput.Search -> navigateInternal(target.searchUrl, NavigationType.TYPED)
+                is ResolvedInput.Search -> {
+                    if (ServiceLocator.settingsRepository.blockSearchEngine &&
+                        !ServiceLocator.temporaryAccess.isActive()
+                    ) {
+                        recordBlockedNavigation(target.searchUrl, BlockReason.NOT_WHITELISTED, NavigationType.TYPED)
+                        Toast.makeText(this@BrowserActivity, R.string.toast_search_engine_blocked, Toast.LENGTH_SHORT).show()
+                        showErrorBlockScreen(target.searchUrl, getString(R.string.toast_search_engine_blocked))
+                    } else {
+                        navigateInternal(target.searchUrl, NavigationType.TYPED)
+                    }
+                }
             }
         }
     }
@@ -602,17 +627,14 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     ): Boolean {
         return when (decision) {
             is NavigationDecision.Allow -> {
-                if (!decision.url.isWeb) return false // blob: إلخ — يكمل المحرك مساره الأصلي
-                if (type == NavigationType.LINK &&
-                    isSamePageIgnoringFragment(view.url, decision.url)
-                ) {
-                    return false
-                }
                 hideBlockOverlay()
                 hideErrorOverlay()
                 hideStartPage()
-                view.loadUrl(decision.url.canonical())
-                true
+                tabsManager.activeTab?.attemptedUrl = null
+                // v1.12.0 — ترك Chromium يكمل التنقل والتوجيه الأصلي (return false) بدل
+                // إلغائه وإعادة استدعاء loadUrl() الذي كان يكسر سلاسل التوجيه (Redirects)
+                // وترويسة Referer وطلبات POST والتنزيلات المباشرة ويجمّد التبويبات.
+                false
             }
 
             is NavigationDecision.OpenExternal -> {
@@ -625,16 +647,39 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
             is NavigationDecision.Block -> {
                 if (view == activeWebView()) runOnUiThread { binding.progressBar.isVisible = false }
-                recordBlockedNavigation(decision.rawUrl ?: rawUrl, decision.reason, type)
-                val suggestion = ExternalAppPolicy.suggestForWebUrl(decision.rawUrl ?: rawUrl)
+
+                // v1.12.0 — إذا كان الرابط أو إعادة التوجيه من صفحة مسموحة يتجه إلى ملف قابل للتنزيل
+                // أو خادم ملفات (CDN مثل objects.githubusercontent.com أو googleusercontent أو mediafire)،
+                // نمرره فورًا لمدير التنزيلات بدلًا من حظره كصفحة ويب.
+                val targetRaw = decision.rawUrl ?: rawUrl
+                if (decision.reason == BlockReason.NOT_WHITELISTED &&
+                    BrowserDownloadManager.isLikelyFileDownloadUrl(targetRaw)
+                ) {
+                    val source = view.url?.takeIf { it.isNotBlank() && it != "about:blank" }
+                        ?: currentSourceUrl()
+                    ServiceLocator.downloadManager.handleDownload(
+                        url = targetRaw,
+                        userAgent = view.settings.userAgentString,
+                        contentDisposition = null,
+                        mimeType = null,
+                        contentLength = -1L,
+                        sourceUrl = source,
+                        sourceAllowed = true
+                    )
+                    onDownloadStartedInWebView(view)
+                    return true
+                }
+
+                recordBlockedNavigation(targetRaw, decision.reason, type)
+                val suggestion = ExternalAppPolicy.suggestForWebUrl(targetRaw)
                 if (decision.reason == BlockReason.NOT_WHITELISTED && suggestion != null &&
                     view == activeWebView()
                 ) {
-                    externalHandler.handleBlockedWebUrl(decision.rawUrl ?: rawUrl) {
-                        showErrorBlockScreen(decision.rawUrl ?: rawUrl, decision.detail)
+                    externalHandler.handleBlockedWebUrl(targetRaw) {
+                        showErrorBlockScreen(targetRaw, decision.detail)
                     }
                 } else if (view == activeWebView()) {
-                    showErrorBlockScreen(decision.rawUrl ?: rawUrl, decision.detail)
+                    showErrorBlockScreen(targetRaw, decision.detail)
                 }
                 true
             }
@@ -718,8 +763,25 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             }
 
             is NavigationDecision.Block -> {
-                recordBlockedNavigation(decision.rawUrl ?: rawUrl, decision.reason, type)
-                showErrorBlockScreen(decision.rawUrl ?: rawUrl, decision.detail)
+                val targetRaw = decision.rawUrl ?: rawUrl
+                // v1.12.0 — روابط التنزيل التي تفتح في نافذة جديدة (target="_blank") وتوجه إلى CDN ملفات
+                if (decision.reason == BlockReason.NOT_WHITELISTED &&
+                    BrowserDownloadManager.isLikelyFileDownloadUrl(targetRaw)
+                ) {
+                    val source = currentSourceUrl()
+                    ServiceLocator.downloadManager.handleDownload(
+                        url = targetRaw,
+                        userAgent = webView.settings.userAgentString,
+                        contentDisposition = null,
+                        mimeType = null,
+                        contentLength = -1L,
+                        sourceUrl = source,
+                        sourceAllowed = true
+                    )
+                    return true // تُدمَّر النافذة المنبثقة المؤقتة فورًا بعد بدء التنزيل
+                }
+                recordBlockedNavigation(targetRaw, decision.reason, type)
+                showErrorBlockScreen(targetRaw, decision.detail)
                 true
             }
         }
@@ -1182,23 +1244,43 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         hideBlockOverlay()
         hideErrorOverlay()
         tabsManager.activeTab?.attemptedUrl = null
+        binding.swipeRefresh.isRefreshing = false
         binding.webViewContainer.removeAllViews()
         val tab = tabsManager.activeTab
         if (tab == null) {
+            binding.progressBar.isVisible = false
             showStartPage()
             return
         }
+        // فصل WebView عن أي حاوية سابقة قبل إضافته لمنع IllegalStateException أو تعليق العرض
+        (tab.webView.parent as? ViewGroup)?.removeView(tab.webView)
         binding.webViewContainer.addView(
             tab.webView,
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         )
+        try {
+            tab.webView.onResume()
+            tab.webView.requestLayout()
+        } catch (_: Exception) {
+        }
+
         // تبويب مستعاد لم يُحمَّل بعد
         val pending = tab.pendingRestoreUrl
         if (pending != null) {
             tab.pendingRestoreUrl = null
+            hideStartPage()
             lifecycleScope.launch { navigateInternal(pending, NavigationType.INITIAL) }
+        } else {
+            val liveUrl = tab.webView.url
+            val hasLoadedWeb = !liveUrl.isNullOrBlank() && !liveUrl.equals("about:blank", ignoreCase = true)
+            if (tab.uiState.isStartPage && !hasLoadedWeb) {
+                showStartPage()
+            } else {
+                hideStartPage()
+            }
         }
+        binding.progressBar.isVisible = tab.uiState.isLoading
         updateTabsChip()
         syncAddressBar()
     }
@@ -1209,6 +1291,89 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     fun syncAddressBarForDialog() = syncAddressBar()
 
     override fun currentSourceUrl(): String? = currentTabUrl()
+
+    /**
+     * v1.12.0 — إذا انطلق تنزيل داخل تبويب منبثق جديد لم يحمّل أي صفحة فعلية (about:blank)،
+     * نغلقه تلقائيًا ليعود المستخدم إلى التبويب الأصلي دون ترك شاشة بيضاء معلقة.
+     */
+    override fun onDownloadStartedInWebView(webView: WebView) {
+        runOnUiThread {
+            val tab = tabsManager.tabs.firstOrNull { it.webView == webView } ?: return@runOnUiThread
+            val liveUrl = webView.url
+            val isBlankTab = (liveUrl.isNullOrBlank() || liveUrl.equals("about:blank", ignoreCase = true)) &&
+                !webView.canGoBack()
+            if (isBlankTab && tabsManager.tabs.size > 1) {
+                tabsManager.closeTab(tab.id)
+                attachActiveTab()
+            }
+        }
+    }
+
+    /**
+     * v1.12.0 — قائمة الضغطة المطوّلة الاحترافية على الصور والروابط لتنزيلها مباشرة إلى الهاتف.
+     */
+    override fun onLongPressElement(webView: WebView, hitType: Int, extra: String) {
+        runOnUiThread {
+            val isImage = hitType == WebView.HitTestResult.IMAGE_TYPE ||
+                hitType == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE
+            val source = webView.url?.takeIf { it.isNotBlank() && it != "about:blank" } ?: currentSourceUrl()
+            val ua = webView.settings.userAgentString
+
+            val options = if (isImage) {
+                arrayOf(
+                    getString(R.string.context_download_image),
+                    getString(R.string.context_open_image_new_tab),
+                    getString(R.string.context_copy_image_url)
+                )
+            } else {
+                arrayOf(
+                    getString(R.string.context_download_link),
+                    getString(R.string.context_open_link_new_tab),
+                    getString(R.string.context_copy_link_url)
+                )
+            }
+
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(extra.take(80))
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> {
+                            if (extra.startsWith("blob:", ignoreCase = true)) {
+                                // تنزيل blob عبر مستمع التنزيل والجسر
+                                val escaped = extra.replace("\\", "\\\\").replace("'", "\\'")
+                                webView.evaluateJavascript(
+                                    """
+                                    (function() {
+                                        var a = document.createElement('a');
+                                        a.href = '$escaped';
+                                        a.download = '';
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
+                                    })();
+                                    """.trimIndent(),
+                                    null
+                                )
+                            } else {
+                                ServiceLocator.downloadManager.handleDownload(
+                                    url = extra,
+                                    userAgent = ua,
+                                    contentDisposition = null,
+                                    mimeType = if (isImage) "image/*" else null,
+                                    contentLength = -1L,
+                                    sourceUrl = source,
+                                    sourceAllowed = true
+                                )
+                            }
+                        }
+                        1 -> navigateFromExternal(extra, newTab = true)
+                        2 -> copyToClipboard(extra)
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
 
     /**
      * تنقل خارجي/غير قابل للعرض من إطار فرعي (iframe) — شبكة أمان v1.2.0.

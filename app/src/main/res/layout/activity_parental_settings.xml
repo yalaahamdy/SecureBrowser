@@ -124,6 +124,16 @@
                 <include
                     android:id="@+id/cardLocalNetwork"
                     layout="@layout/row_action_card" />
+
+                <!-- v1.12.0: حظر محرك البحث بالكامل (جوجل/بينج/دك دك جو والصور والفيديوهات) -->
+                <include
+                    android:id="@+id/cardBlockSearchEngine"
+                    layout="@layout/row_action_card" />
+
+                <!-- v1.12.0: تحديث التطبيق تلقائيًا من GitHub Releases -->
+                <include
+                    android:id="@+id/cardAppUpdate"
+                    layout="@layout/row_action_card" />
             </LinearLayout>
 
             <include

@@ -110,6 +110,34 @@ class ParentalSettingsActivity : AppCompatActivity() {
             }
         } }
 
+        // v1.12.0: حظر محرك البحث بالكامل (جوجل / بينج / دك دك جو والصور والفيديوهات)
+        bindCard(
+            binding.cardBlockSearchEngine, R.drawable.ic_search, getString(R.string.card_block_search_engine)
+        ) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.card_block_search_engine)
+                .setItems(
+                    arrayOf(
+                        getString(R.string.search_engine_status_allowed),
+                        getString(R.string.search_engine_status_blocked)
+                    )
+                ) { _, which ->
+                    lifecycleScope.launch {
+                        ServiceLocator.settingsRepository.putBool("block_search_engine", which == 1)
+                        refreshValues()
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+
+        // v1.12.0: التحقق من تحديثات التطبيق على GitHub
+        bindCard(
+            binding.cardAppUpdate, R.drawable.ic_download, getString(R.string.card_check_updates)
+        ) {
+            com.securebrowser.app.update.AppUpdateManager.checkForUpdates(this, manual = true)
+        }
+
         // ————— سياسة التنزيلات — السماح مع التسجيل هو الافتراضي (طلب الوالد الصريح) —————
         // لا شيء يُحظر افتراضيًا؛ كل تنزيل يُسجَّل في شاشة التنزيلات.
         bindCard(
@@ -218,6 +246,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshValues()
+        com.securebrowser.app.update.AppUpdateManager.onActivityResume(this)
     }
 
     private fun refreshValues() {
@@ -241,6 +270,12 @@ class ParentalSettingsActivity : AppCompatActivity() {
         binding.cardLocalNetwork.cardValue.isVisible = true
         binding.cardLocalNetwork.cardValue.text =
             getString(if (s.allowLocalNetwork) R.string.value_on else R.string.value_off)
+        binding.cardBlockSearchEngine.cardValue.isVisible = true
+        binding.cardBlockSearchEngine.cardValue.text =
+            getString(if (s.blockSearchEngine) R.string.search_engine_status_blocked else R.string.search_engine_status_allowed)
+        binding.cardAppUpdate.cardValue.isVisible = true
+        binding.cardAppUpdate.cardValue.text =
+            getString(R.string.update_current_version_fmt, com.securebrowser.app.update.AppUpdateManager.currentVersionName(this))
         binding.cardApkPolicy.cardValue.isVisible = true
         binding.cardApkPolicy.cardValue.text = policyLabel(s.apkPolicy)
         binding.cardArchivePolicy.cardValue.isVisible = true
