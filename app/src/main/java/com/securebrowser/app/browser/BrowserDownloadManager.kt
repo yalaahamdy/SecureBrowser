@@ -257,6 +257,9 @@ class BrowserDownloadManager(
             if (record.state != DownloadRepository.STATE_FAILED &&
                 record.state != DownloadRepository.STATE_BLOCKED
             ) return@launch
+            // حذف أي بقايا ملف جزئي تالف من المحاولة الفاشلة وتصفير العداد للبدء بنظافة
+            record.filePath?.let { File(downloadsDir(), it).delete() }
+            repository.updateProgress(id, 0L, record.sizeBytes)
             repository.updateState(id, DownloadRepository.STATE_DOWNLOADING)
             startTransfer(id)
         }
@@ -267,7 +270,16 @@ class BrowserDownloadManager(
         scope.launch(Dispatchers.IO) {
             pauseFlags[id] = true
             jobs.remove(id)?.cancelAndJoin()
+            blobStreams.remove(id)?.let { session ->
+                try {
+                    session.output.close()
+                } catch (_: Exception) {
+                }
+                session.file.delete()
+            }
             liveMetrics.remove(id)
+            fullUrls.remove(id)
+            publicPaths.remove(id)
             DownloadNotificationHelper.cancel(context, id)
             val record = repository.findById(id) ?: return@launch
             record.filePath?.let { relative ->
@@ -373,15 +385,65 @@ class BrowserDownloadManager(
         return null
     }
 
+    /** البحث عن Uri صالح لفتح أو مشاركة الملف (محلي، مجلد Download العام، أو MediaStore). */
+    private fun resolveOpenOrShareUri(record: DownloadRecordEntity): Pair<Uri, String>? {
+        val file = findExistingDownloadFile(record)
+        if (file != null) {
+            val uri = FileProvider.getUriForFile(
+                context, context.packageName + ".fileprovider", file
+            )
+            return uri to resolveOpenMimeType(file.name, record.mimeType)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val candidates = listOfNotNull(
+                record.fileName.takeIf { it.isNotBlank() },
+                record.filePath?.takeIf { it.isNotBlank() }
+            ).distinct()
+            for (name in candidates) {
+                val mediaUri = queryMediaStoreDownloadUri(name)
+                if (mediaUri != null) {
+                    return mediaUri to resolveOpenMimeType(name, record.mimeType)
+                }
+            }
+        }
+        return null
+    }
+
+    private fun queryMediaStoreDownloadUri(displayName: String): Uri? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return try {
+            val projection = arrayOf(MediaStore.Downloads._ID)
+            val selection = "${MediaStore.Downloads.DISPLAY_NAME} = ?"
+            context.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                arrayOf(displayName),
+                "${MediaStore.Downloads.DATE_ADDED} DESC"
+            )?.use { c ->
+                if (c.moveToFirst()) {
+                    val idCol = c.getColumnIndex(MediaStore.Downloads._ID)
+                    if (idCol >= 0) {
+                        android.content.ContentUris.withAppendedId(
+                            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                            c.getLong(idCol)
+                        )
+                    } else null
+                } else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     /** فتح الملف المنزَّل بأي تطبيق يستطيع التعامل معه. */
     fun openFile(id: Long) {
         scope.launch(Dispatchers.IO) {
             val record = repository.findById(id) ?: return@launch
-            val file = findExistingDownloadFile(record) ?: return@launch
-            val uri = FileProvider.getUriForFile(
-                context, context.packageName + ".fileprovider", file
-            )
-            val resolvedMime = resolveOpenMimeType(file.name, record.mimeType)
+            val (uri, resolvedMime) = resolveOpenOrShareUri(record) ?: run {
+                toast(context.getString(R.string.toast_download_failed, record.fileName))
+                return@launch
+            }
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, resolvedMime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -399,11 +461,7 @@ class BrowserDownloadManager(
     fun shareFile(id: Long) {
         scope.launch(Dispatchers.IO) {
             val record = repository.findById(id) ?: return@launch
-            val file = findExistingDownloadFile(record) ?: return@launch
-            val uri = FileProvider.getUriForFile(
-                context, context.packageName + ".fileprovider", file
-            )
-            val resolvedMime = resolveOpenMimeType(file.name, record.mimeType)
+            val (uri, resolvedMime) = resolveOpenOrShareUri(record) ?: return@launch
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = resolvedMime
                 putExtra(Intent.EXTRA_STREAM, uri)
@@ -944,8 +1002,13 @@ class BrowserDownloadManager(
             var failed = false
             var attempts = 0
             var stalledPausedCount = 0
+            var speedWindowStartMs = System.currentTimeMillis()
+            var speedWindowStartBytes = 0L
+            var smoothedBps = 0L
             while (!completed && !failed && attempts < 1800) {
                 if (pauseFlags[id] == true) {
+                    liveMetrics.remove(id)
+                    DownloadNotificationHelper.cancel(context, id)
                     dm.remove(sysId)
                     return false
                 }
@@ -958,6 +1021,26 @@ class BrowserDownloadManager(
                         val status = if (statusIdx >= 0) c.getInt(statusIdx) else DownloadManager.STATUS_RUNNING
                         val soFar = if (bytesIdx >= 0) c.getLong(bytesIdx).coerceAtLeast(0L) else 0L
                         val total = if (totalIdx >= 0) c.getLong(totalIdx).takeIf { it > 0 } else null
+
+                        val now = System.currentTimeMillis()
+                        val elapsedMs = (now - speedWindowStartMs).coerceAtLeast(1L)
+                        if (elapsedMs >= 500L) {
+                            val delta = (soFar - speedWindowStartBytes).coerceAtLeast(0L)
+                            val instantBps = (delta * 1000L) / elapsedMs
+                            smoothedBps = if (smoothedBps == 0L) instantBps
+                            else ((smoothedBps * 6L + instantBps * 4L) / 10L)
+                            speedWindowStartMs = now
+                            speedWindowStartBytes = soFar
+                            val etaSec = if (total != null && total > soFar && smoothedBps > 0L) {
+                                (total - soFar) / smoothedBps
+                            } else -1L
+                            liveMetrics[id] = LiveMetrics(smoothedBps, etaSec)
+                            val speedStr = if (smoothedBps > 0) formatBytesPerSec(smoothedBps) else null
+                            DownloadNotificationHelper.showProgress(
+                                context, id, uniquePublicName, soFar, total, speedStr
+                            )
+                        }
+
                         repository.updateProgress(id, soFar, total)
                         when (status) {
                             DownloadManager.STATUS_SUCCESSFUL -> completed = true
@@ -1146,8 +1229,17 @@ class BrowserDownloadManager(
 
                 var chosenName = sourceFile.name
                 var uri: Uri? = null
-                for (attempt in 0..10) {
-                    val candidateName = if (attempt == 0) sourceFile.name else "$base ($attempt)$ext"
+                for (attempt in 0..12) {
+                    val candidateName = when {
+                        attempt == 0 -> sourceFile.name
+                        attempt <= 10 -> "$base ($attempt)$ext"
+                        attempt == 11 -> {
+                            val asciiBase = base.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                                .ifBlank { "download" }.take(60)
+                            "${asciiBase}_${System.currentTimeMillis()}$ext"
+                        }
+                        else -> "download_${System.currentTimeMillis()}$ext"
+                    }
                     val values = ContentValues().apply {
                         put(MediaStore.Downloads.DISPLAY_NAME, candidateName)
                         put(MediaStore.Downloads.MIME_TYPE, safeMime)

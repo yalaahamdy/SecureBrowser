@@ -70,7 +70,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:background="?attr/colorSurfaceVariant"
+        android:background="@drawable/bg_section_card"
         android:visibility="gone">
 
         <TextView

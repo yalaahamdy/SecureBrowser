@@ -1,6 +1,6 @@
 ﻿param(
-    [string]$TagName = "v1.13.0",
-    [string]$ApkPath = "C:\Users\Rocket\Documents\antigravity\hopeful-faraday\SecureBrowser-v1.13.0-release.apk"
+    [string]$TagName = "v1.14.0",
+    [string]$ApkPath = "C:\Users\Rocket\Documents\antigravity\hopeful-faraday\SecureBrowser-v1.14.0-release.apk"
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,22 +31,18 @@ $headers = @{
 }
 
 $releaseBody = @"
-## متصفح آمن — Secure Browser v1.13.0
+## متصفح آمن — Secure Browser v1.14.0
 
-### إعادة الهيكلة الشاملة (مدير التنزيلات + الستايلات والأزرار + محرك التحميل):
-1. **إعادة هيكلة واجهة مدير التنزيلات من الصفر (`DownloadsActivity` & `item_download_row`):**
-   - **واجهة احترافية متكاملة:** شريط علوي بإضافة تنزيل من رابط مباشر (`+`) ومسح السجلات المنتهية، وبطاقة إحصائيات عليا (عدد الملفات، الحجم الكلي، النشطة الآن، ومسار الحفظ الدائم `Download`).
-   - **بحث فوري و 8 تصنيفات فلترة:** الكل، الجارية، المستندات وPDF، الصور، الفيديو، الصوتيات، تطبيقات APK، والملفات المضغوطة.
-   - **بطاقات حية بلا ارتعاش (`ListAdapter` + `DiffUtil`):** عرض نسبة التقدم والسرعة الحية (`MB/s`/`KB/s`) والوقت المتبقي (`ETA`) مع أزرار إجراءات سريعة مباشرة على البطاقة (إيقاف/استئناف/إعادة محاولة/فتح) وقائمة خيارات شاملة تتضمن إعادة تسمية الملف ونسخ الرابط.
-   - **إشعارات نظام حية وشريط Snackbar:** ظهور تقدم التنزيل والسرعة في إشعارات النظام وSnackbar داخل المتصفح مع زر «عرض التنزيلات».
-2. **إصلاح جذري لمشاكل فشل التحميلات (`BrowserDownloadManager` & `SecureWebViewFactory` & `BrowserActivity`):**
-   - **كشف الملفات المخفية خلف Redirects / APIs (`probeUrlForDownload`):** فحص سريع لترويسات الروابط المحولة داخل الصفحات المسموحة؛ إذا أعاد الخادم `Content-Disposition: attachment` أو ملفًا ثنائيًا يبدأ التنزيل فورًا بدل شاشة الحظر.
-   - **حفظ الروابط الطويلة (>2048 حرفًا) وتجميع `Set-Cookie` أثناء الـ Redirects:** منع إفساد تواقيع S3/Drive/CDN ومنع فقدان كوكيز الجلسات بين التحويلات.
-   - **بث مقسم لروابط `blob:` (`Chunked Streaming`):** قراءة ملفات `blob:` على دفعات `256 KB` إلى القرص مباشرة لتجنب نفاد الذاكرة أو فشل الملفات الكبيرة.
-   - **محرك متعدد الاستراتيجيات:** محاولة ثانية تلقائية بدون `Referer` وبلا `Range` مع كشف صفحات الخطأ HTML المزيفة، والانتقال الآمن إلى `DownloadManager` النظامي وحفظ النسخ المؤكدة في مجلد `Download` بالهاتف.
-3. **إكمال الستايلات والثيمات والأزرار في التطبيق بالكامل:**
-   - استكمال كامل ألوان وسمات Material 3 للوضعين النهاري والليلي (`colors.xml`, `values-night/colors.xml`, `themes.xml`).
-   - تعريف أنماط أزرار موحدة (`Primary`, `Tonal`, `Outlined`, `Text`, `Danger`, `Compact`, `IconButton`), وحقول إدخال ورقاقات وحوارات دائرية موحدة (`MaterialAlertDialogBuilder` و `BottomSheet`).
+### تحسينات الستايلات والأزرار وإصلاح المشاكل الحرجة:
+1. **إكمال وتوحيد الستايلات والأزرار والثيمات عبر التطبيق:**
+   - دعم شريط التنقل السفلي للنظام (`windowLightNavigationBar`) للوضعين النهاري والليلي (`values-v27` و `values-night-v27`) عبر `Base.Theme.SecureBrowser`.
+   - تحديث `bg_section_card`، و`sheet_site_info`، و`item_blocked_row`، و`item_recent_row` (شارات ملوّنة للخط الزمني)، و`dialog_backup_export` و`dialog_backup_import` (`MaterialCheckBox`/`MaterialRadioButton`)، و`view_error`.
+   - توحيد أزرار الأشرطة العلوية ومقابض السحب (`bg_drag_handle`) في جميع قوائم `BottomSheet`، وحماية شاشة إنشاء رمز الوالدين بالتمرير على الشاشات الصغيرة، وضبط مفاتيح `PinPadView`.
+   - إصلاح إخفاء رسالة السجل الفارغ في السجل السريع.
+2. **إصلاح مشاكل حرجة في التحميلات والتبويبات:**
+   - إظهار مؤشر التحميل أثناء فحص الروابط المحوّلة (`probeUrlForDownload`) في المتصفح وإطفاؤه فور بدء التنزيل، وإغلاق التبويبات المنبثقة العابرة تلقائيًا.
+   - إصلاح إعادة المحاولة (`retry`) بحذف بقايا الملف التالف وتصفير التقدم مع إبقاء الرابط الكامل غير مقصوص، وحماية `delete` بإلغاء أي تدفق `blob:` نشط.
+   - إضافة فتح ومشاركة احتياطيين عبر الاستعلام من `MediaStore.Downloads` على Android 10+، وحساب السرعة الحية والـ ETA وإشعارات التقدم أيضًا عند عمل `DownloadManager` النظامي الاحتياطي.
 "@
 
 Write-Host "=== Creating Release on GitHub ===" -ForegroundColor Cyan

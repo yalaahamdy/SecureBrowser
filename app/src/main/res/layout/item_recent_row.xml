@@ -3,28 +3,31 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
-    android:minHeight="48dp"
+    android:minHeight="52dp"
     android:orientation="horizontal"
     android:paddingHorizontal="14dp"
-    android:paddingVertical="6dp">
+    android:paddingVertical="8dp">
 
     <TextView
         android:id="@+id/recentTime"
-        android:layout_width="52dp"
+        android:layout_width="48dp"
         android:layout_height="wrap_content"
-        android:alpha="0.65"
         android:ellipsize="end"
         android:fontFamily="monospace"
         android:maxLines="1"
-        android:textColor="?attr/colorOnBackground"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp" />
 
     <TextView
         android:id="@+id/recentIcon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="monospace"
-        android:textSize="13sp" />
+        android:background="@drawable/bg_pill"
+        android:paddingHorizontal="9dp"
+        android:paddingVertical="3dp"
+        android:textColor="?attr/colorOnPrimaryContainer"
+        android:textSize="11sp"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/recentText"
@@ -35,5 +38,5 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:textColor="?attr/colorOnBackground"
-        android:textSize="13sp" />
+        android:textSize="13.5sp" />
 </LinearLayout>

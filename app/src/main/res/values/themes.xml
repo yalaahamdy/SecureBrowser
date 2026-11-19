@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.SecureBrowser" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.SecureBrowser" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- الألوان الأساسية للنظام (Material 3 Light / Night) -->
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorOnPrimary">@color/colorOnPrimary</item>
@@ -38,6 +38,8 @@
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.SecureBrowser.MaterialAlertDialog</item>
         <item name="bottomSheetDialogTheme">@style/ThemeOverlay.SecureBrowser.BottomSheetDialog</item>
     </style>
+
+    <style name="Theme.SecureBrowser" parent="Base.Theme.SecureBrowser" />
 
     <style name="Theme.SecureBrowser.Splash">
         <item name="android:windowBackground">@color/colorPrimary</item>

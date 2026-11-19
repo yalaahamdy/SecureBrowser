@@ -36,7 +36,7 @@
             android:layout_marginTop="4dp"
             android:orientation="vertical">
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbMerge"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -44,7 +44,7 @@
                 android:text="@string/backup_mode_merge"
                 android:textSize="14sp" />
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbReplace"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -59,11 +59,11 @@
             android:layout_marginStart="8dp"
             android:layout_marginTop="4dp"
             android:text="@string/backup_mode_replace_warn"
-            android:textColor="@color/tempBannerForeground"
+            android:textColor="@color/colorError"
             android:textSize="12sp"
             android:visibility="gone" />
 
-        <CheckBox
+        <com.google.android.material.checkbox.MaterialCheckBox
             android:id="@+id/backupRestorePin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

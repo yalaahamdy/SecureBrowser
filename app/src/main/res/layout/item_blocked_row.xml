@@ -3,17 +3,25 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
-    android:minHeight="64dp"
+    android:minHeight="68dp"
     android:orientation="horizontal"
     android:paddingHorizontal="14dp"
-    android:paddingVertical="8dp">
+    android:paddingVertical="10dp">
 
-    <ImageView
-        android:layout_width="22dp"
-        android:layout_height="22dp"
-        android:importantForAccessibility="no"
-        android:src="@drawable/ic_shield_block"
-        android:tint="@color/colorError" />
+    <FrameLayout
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_icon_badge"
+        android:backgroundTint="?attr/colorErrorContainer">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_shield_block"
+            android:tint="@color/colorError" />
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="0dp"
@@ -48,10 +56,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:alpha="0.6"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="?attr/colorOnBackground"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="11sp" />
     </LinearLayout>
 </LinearLayout>

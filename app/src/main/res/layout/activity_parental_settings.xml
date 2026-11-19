@@ -14,9 +14,7 @@
 
         <ImageButton
             android:id="@+id/btnToolbarBack"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            style="@style/Widget.SecureBrowser.IconButton.Toolbar"
             android:contentDescription="@string/cd_back"
             android:src="@drawable/ic_back"
             android:tint="@color/browserBarForeground" />

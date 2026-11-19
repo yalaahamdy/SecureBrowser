@@ -45,6 +45,18 @@ data class MenuRow(
     val onClick: () -> Unit
 )
 
+private fun createSheetDragHandle(activity: BrowserActivity): View {
+    val d = activity.resources.displayMetrics.density
+    return View(activity).apply {
+        setBackgroundResource(R.drawable.bg_drag_handle)
+        layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (4 * d).toInt()).apply {
+            gravity = android.view.Gravity.CENTER_HORIZONTAL
+            topMargin = (8 * d).toInt()
+            bottomMargin = (10 * d).toInt()
+        }
+    }
+}
+
 private fun buildMenuDialog(
     activity: BrowserActivity,
     title: String?,
@@ -52,13 +64,14 @@ private fun buildMenuDialog(
 ): BottomSheetDialog {
     val container = LinearLayout(activity).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, if (title == null) 12 else 0, 0, 12)
+        setPadding(0, 2, 0, 16)
     }
+    container.addView(createSheetDragHandle(activity))
     if (title != null) {
         val titleView = android.widget.TextView(activity).apply {
             text = title
             val pad = (18 * activity.resources.displayMetrics.density).toInt()
-            setPadding(pad, pad, pad, pad / 2)
+            setPadding(pad, pad / 3, pad, pad / 2)
             setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 17f)
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         }
@@ -294,12 +307,13 @@ fun BrowserActivity.showQuickHistory() {
     val sheet = BottomSheetDialog(this)
     val container = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(0, 14, 0, 12)
+        setPadding(0, 2, 0, 16)
     }
+    container.addView(createSheetDragHandle(this))
     val title = android.widget.TextView(this).apply {
         text = getString(R.string.history_title)
         val pad = (18 * resources.displayMetrics.density).toInt()
-        setPadding(pad, 0, pad, pad / 2)
+        setPadding(pad, pad / 3, pad, pad / 2)
         setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 17f)
         setTypeface(typeface, android.graphics.Typeface.BOLD)
     }
@@ -312,24 +326,33 @@ fun BrowserActivity.showQuickHistory() {
             resources.displayMetrics.heightPixels / 2
         )
     }
+    val emptyView = android.widget.TextView(this).apply {
+        text = getString(R.string.history_empty)
+        val pad = (24 * resources.displayMetrics.density).toInt()
+        setPadding(pad, pad, pad, pad)
+        gravity = android.view.Gravity.CENTER
+        alpha = 0.65f
+        isVisible = false
+    }
     container.addView(recycler)
+    container.addView(emptyView)
     sheet.setContentView(container)
     sheet.show()
 
     lifecycleScope.launch {
         val entries = ServiceLocator.historyRepository.recent(100)
-        recycler.adapter = HistoryRowAdapter(
-            entries,
-            showDelete = false,
-            onOpen = { entry -> sheet.dismiss(); navigateFromExternal(entry.url, newTab = false) },
-            onMore = { entry -> sheet.dismiss(); showHistoryActions(entry.url) }
-        )
         if (entries.isEmpty()) {
-            container.addView(android.widget.TextView(this@showQuickHistory).apply {
-                text = getString(R.string.history_empty)
-                val pad = (18 * resources.displayMetrics.density).toInt()
-                setPadding(pad, pad, pad, pad)
-            })
+            recycler.isVisible = false
+            emptyView.isVisible = true
+        } else {
+            emptyView.isVisible = false
+            recycler.isVisible = true
+            recycler.adapter = HistoryRowAdapter(
+                entries,
+                showDelete = false,
+                onOpen = { entry -> sheet.dismiss(); navigateFromExternal(entry.url, newTab = false) },
+                onMore = { entry -> sheet.dismiss(); showHistoryActions(entry.url) }
+            )
         }
     }
 }

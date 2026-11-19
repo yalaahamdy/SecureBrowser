@@ -16,7 +16,7 @@
         android:textColor="?android:attr/textColorPrimary"
         android:textSize="14sp" />
 
-    <CheckBox
+    <com.google.android.material.checkbox.MaterialCheckBox
         android:id="@+id/backupIncludePin"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

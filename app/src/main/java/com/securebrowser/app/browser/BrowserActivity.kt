@@ -714,9 +714,15 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
                 if (decision.reason == BlockReason.NOT_WHITELISTED && isWebPageClick && view == activeWebView()) {
                     val ua = view.settings.userAgentString
+                    runOnUiThread {
+                        binding.progressBar.isIndeterminate = true
+                        binding.progressBar.isVisible = true
+                    }
                     lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         val probe = BrowserDownloadManager.probeUrlForDownload(targetRaw, ua, source)
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            binding.progressBar.isIndeterminate = false
+                            binding.progressBar.isVisible = false
                             if (isFinishing || isDestroyed) return@withContext
                             if (probe.isFileDownload) {
                                 ServiceLocator.downloadManager.handleDownload(
@@ -1401,11 +1407,19 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
      */
     override fun onDownloadStartedInWebView(webView: WebView) {
         runOnUiThread {
+            if (webView == activeWebView()) {
+                binding.progressBar.isIndeterminate = false
+                binding.progressBar.isVisible = false
+                binding.swipeRefresh.isRefreshing = false
+            }
             val tab = tabsManager.tabs.firstOrNull { it.webView == webView } ?: return@runOnUiThread
             val liveUrl = webView.url
             val isBlankTab = (liveUrl.isNullOrBlank() || liveUrl.equals("about:blank", ignoreCase = true)) &&
                 !webView.canGoBack()
-            if (isBlankTab && tabsManager.tabs.size > 1) {
+            val isTransientDownloadTab = !webView.canGoBack() &&
+                tab.uiState.title.isNullOrBlank() &&
+                (System.currentTimeMillis() - tab.createdAt < 15_000L)
+            if ((isBlankTab || isTransientDownloadTab) && tabsManager.tabs.size > 1) {
                 tabsManager.closeTab(tab.id)
                 attachActiveTab()
             }

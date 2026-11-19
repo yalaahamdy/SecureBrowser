@@ -504,10 +504,21 @@ object DownloadActionsSheet {
         val sheet = BottomSheetDialog(activity)
         val container = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, 16, 0, 18)
+            setPadding(0, 4, 0, 18)
         }
 
-        val pad = (18 * activity.resources.displayMetrics.density).toInt()
+        val d = activity.resources.displayMetrics.density
+        val handle = android.view.View(activity).apply {
+            setBackgroundResource(R.drawable.bg_drag_handle)
+            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (4 * d).toInt()).apply {
+                gravity = android.view.Gravity.CENTER_HORIZONTAL
+                topMargin = (8 * d).toInt()
+                bottomMargin = (10 * d).toInt()
+            }
+        }
+        container.addView(handle)
+
+        val pad = (18 * d).toInt()
         val headerTitle = TextView(activity).apply {
             text = download.fileName
             setPadding(pad, 0, pad, pad / 3)

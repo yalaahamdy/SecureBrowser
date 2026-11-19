@@ -333,7 +333,12 @@ class PinPadView @JvmOverloads constructor(
         keyButton(label, 0, onClick)
 
     private fun keyButton(label: String, descRes: Int, onClick: () -> Unit): MaterialButton =
-        MaterialButton(context).apply {
+        MaterialButton(
+            android.view.ContextThemeWrapper(
+                context,
+                com.google.android.material.R.style.Widget_Material3_Button_ElevatedButton
+            )
+        ).apply {
             text = label
             textSize = 23f
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
@@ -346,6 +351,11 @@ class PinPadView @JvmOverloads constructor(
             setTextColor(colorOnBackground)
             insetTop = 0
             insetBottom = 0
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(0, 0, 0, 0)
             if (descRes != 0) contentDescription = context.getString(descRes)
             setOnClickListener {
                 if (locked) return@setOnClickListener

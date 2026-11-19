@@ -87,5 +87,22 @@ class TimelineAdapter(
             android.text.format.DateFormat.format("HH:mm", entry.timestamp).toString()
         holder.binding.recentIcon.text = entry.label
         holder.binding.recentText.text = entry.detail
+
+        val ctx = holder.binding.root.context
+        val (bgRes, textRes) = when (entry.label) {
+            ctx.getString(R.string.recent_blocked),
+            ctx.getString(R.string.recent_download_blocked) ->
+                R.color.colorErrorContainer to R.color.colorError
+            ctx.getString(R.string.recent_downloaded) ->
+                R.color.chipDone to android.R.color.white
+            else ->
+                R.color.colorPrimaryContainer to R.color.colorOnPrimaryContainer
+        }
+        holder.binding.recentIcon.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            androidx.core.content.ContextCompat.getColor(ctx, bgRes)
+        )
+        holder.binding.recentIcon.setTextColor(
+            androidx.core.content.ContextCompat.getColor(ctx, textRes)
+        )
     }
 }
