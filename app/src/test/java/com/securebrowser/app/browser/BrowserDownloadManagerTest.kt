@@ -80,4 +80,13 @@ class BrowserDownloadManagerTest {
         org.junit.Assert.assertFalse(com.securebrowser.app.security.SecurityEngine.isSearchEngineUrl(parse("https://classroom.google.com/u/0/h")))
         org.junit.Assert.assertFalse(com.securebrowser.app.security.SecurityEngine.isSearchEngineUrl(parse("https://drive.google.com/drive/my-drive")))
     }
+
+    @Test
+    fun isLikelyFileDownloadUrl_recognizesDirectFilesAndCdnHosts() {
+        org.junit.Assert.assertTrue(BrowserDownloadManager.isLikelyFileDownloadUrl("https://cdn.example.net/books/math.pdf"))
+        org.junit.Assert.assertTrue(BrowserDownloadManager.isLikelyFileDownloadUrl("https://objects.githubusercontent.com/github-production-release-asset/123?X-Amz-Signature=abc%2B123"))
+        org.junit.Assert.assertTrue(BrowserDownloadManager.isLikelyFileDownloadUrl("https://my-bucket.s3.amazonaws.com/export?response-content-disposition=attachment"))
+        org.junit.Assert.assertTrue(BrowserDownloadManager.isLikelyFileDownloadUrl("https://dl.dropboxusercontent.com/s/xyz/notes.zip"))
+        org.junit.Assert.assertFalse(BrowserDownloadManager.isLikelyFileDownloadUrl("https://random-blog.com/article/about-cats"))
+    }
 }

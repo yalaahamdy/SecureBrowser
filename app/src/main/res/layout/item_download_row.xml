@@ -1,87 +1,148 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    صف تنزيل (v1.7.0 — إعادة تصميم): بلاطة ملوّنة بأيقونة نوع الملف
-    (فيديو/صوت/صورة/أرشيف/APK/مستند) + اسم الملف + شارة حالة ملوّنة
-    + وضوح (حجم • وقت • المصدر) + شريط تقدم.
--->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?attr/selectableItemBackground"
-    android:orientation="vertical"
-    android:paddingHorizontal="14dp"
-    android:paddingVertical="10dp">
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="5dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp">
 
-        <FrameLayout
-            android:id="@+id/downloadTile"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:background="@drawable/bg_icon_round">
-
-            <ImageView
-                android:id="@+id/downloadTypeIcon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:importantForAccessibility="no"
-                android:src="@drawable/ic_download" />
-        </FrameLayout>
-
+        <!-- الصف العلوي: أيقونة + تفاصيل + شارة حالة + زر خيارات -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:id="@+id/downloadTile"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:background="@drawable/bg_icon_badge">
+
+                <ImageView
+                    android:id="@+id/downloadTypeIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_download" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/downloadName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="middle"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="14.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/downloadMeta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/downloadName"
-                android:layout_width="match_parent"
+                android:id="@+id/downloadState"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:ellipsize="middle"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_pill"
+                android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="?attr/colorOnBackground"
-                android:textSize="14sp"
+                android:paddingHorizontal="9dp"
+                android:paddingVertical="3dp"
+                android:textColor="@android:color/white"
+                android:textSize="10.5sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/downloadMeta"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:alpha="0.65"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:textColor="?attr/colorOnBackground"
-                android:textSize="12sp" />
+            <ImageButton
+                android:id="@+id/btnDownloadMore"
+                style="@style/Widget.SecureBrowser.IconButton.Card"
+                android:layout_marginStart="4dp"
+                android:contentDescription="@string/cd_menu"
+                android:src="@drawable/ic_menu"
+                android:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/downloadState"
-            android:layout_width="wrap_content"
+        <!-- شريط التقدم الخطي الحي -->
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/downloadProgress"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:background="@drawable/bg_pill"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="4dp"
-            android:textColor="@android:color/white"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:layout_marginTop="10dp"
+            android:max="100"
+            app:trackCornerRadius="4dp"
+            app:trackThickness="5dp" />
 
-    <com.google.android.material.progressindicator.LinearProgressIndicator
-        android:id="@+id/downloadProgress"
-        android:layout_width="match_parent"
-        android:layout_height="4dp"
-        android:layout_marginStart="58dp"
-        android:layout_marginTop="6dp"
-        android:max="100" />
-</LinearLayout>
+        <!-- صف الإجراءات السريعة المباشرة على البطاقة -->
+        <LinearLayout
+            android:id="@+id/quickActionsRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnQuickPrimary"
+                style="@style/Widget.SecureBrowser.Button.Compact"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:layout_marginEnd="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnQuickSecondary"
+                style="@style/Widget.SecureBrowser.Button.CompactDanger"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/badgeSavedPublic"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_pill"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="@string/downloads_saved_in_public"
+                android:textColor="@color/chipDone"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

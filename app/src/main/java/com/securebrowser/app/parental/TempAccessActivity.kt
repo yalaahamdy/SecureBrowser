@@ -76,9 +76,14 @@ class TempAccessActivity : AppCompatActivity() {
     private fun buildDurationChips() {
         val presets = TemporaryAccessManager.PRESET_MINUTES
         for (minutes in presets) {
-            val chip = Chip(this).apply {
+            val chip = Chip(
+                this,
+                null,
+                com.google.android.material.R.attr.chipStyle
+            ).apply {
                 id = View_GeneratedId()
                 isCheckable = true
+                isCheckedIconVisible = true
                 text = if (minutes >= 60) getString(R.string.temp_hours_short, minutes / 60)
                 else getString(R.string.temp_minutes_short, minutes)
                 tag = minutes

@@ -6,12 +6,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.securebrowser.app.R
 import com.securebrowser.app.browser.BrowserActivity
 import com.securebrowser.app.browser.HistoryGrouper
@@ -42,7 +42,7 @@ class HistoryActivity : AppCompatActivity() {
         binding.btnToolbarAction.isVisible = true
 
         binding.btnToolbarAction.setOnClickListener {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.card_clear_history))
                 .setMessage(R.string.confirm_clear_history)
                 .setPositiveButton(R.string.ok) { _, _ ->
@@ -145,7 +145,7 @@ class GroupedHistoryAdapter(
             activity.getString(R.string.history_site_info),
             activity.getString(R.string.delete)
         )
-        AlertDialog.Builder(activity)
+        MaterialAlertDialogBuilder(activity)
             .setTitle(entry.host ?: entry.url.take(60))
             .setItems(options) { _, which ->
                 when (which) {
@@ -191,7 +191,7 @@ class GroupedHistoryAdapter(
             return
         }
         binding.whitelistHostPreview.text = host
-        AlertDialog.Builder(activity)
+        MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.menu_add_whitelist)
             .setView(binding.root)
             .setPositiveButton(R.string.ok) { _, _ ->
@@ -217,7 +217,7 @@ class GroupedHistoryAdapter(
         val success = parsed as? com.securebrowser.app.core.url.NormalizeResult.Success
         val host = success?.url?.host ?: url.take(80)
         val https = success?.url?.scheme == "https"
-        AlertDialog.Builder(activity)
+        MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.site_info_title)
             .setMessage(
                 buildString {

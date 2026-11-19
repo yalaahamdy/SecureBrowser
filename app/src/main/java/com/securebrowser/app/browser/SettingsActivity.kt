@@ -3,10 +3,10 @@ package com.securebrowser.app.browser
 import android.os.Bundle
 import android.text.InputType
 import android.widget.EditText
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.securebrowser.app.App
 import com.securebrowser.app.R
 import com.securebrowser.app.data.repository.SettingsRepository
@@ -113,7 +113,7 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.theme_light),
             getString(R.string.theme_dark)
         )
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.card_theme)
             .setItems(labels) { _, which ->
                 lifecycleScope.launch {
@@ -133,7 +133,7 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.language_ar),
             getString(R.string.language_en)
         )
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.card_language)
             .setItems(labels) { _, which ->
                 lifecycleScope.launch { settings.put("language", values[which]) }
@@ -155,7 +155,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         val values = arrayOf("duckduckgo", "google", "bing")
         val labels = values.map { engineLabel(it) }.toTypedArray()
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.card_search_engine)
             .setItems(labels) { _, which ->
                 lifecycleScope.launch {
@@ -173,7 +173,7 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.search_engine_status_blocked)
         )
         val checked = if (settings.blockSearchEngine) 1 else 0
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.card_block_search_engine)
             .setSingleChoiceItems(options, checked) { dialog, which ->
                 lifecycleScope.launch {
@@ -191,7 +191,7 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.homepage_start),
             getString(R.string.address_hint)
         )
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.card_homepage)
             .setItems(options) { _, which ->
                 if (which == 0) {
@@ -200,13 +200,18 @@ class SettingsActivity : AppCompatActivity() {
                         refreshValues()
                     }
                 } else {
+                    val pad = (20 * resources.displayMetrics.density).toInt()
+                    val wrapper = android.widget.FrameLayout(this).apply {
+                        setPadding(pad, pad / 2, pad, 0)
+                    }
                     val input = EditText(this).apply {
                         inputType = InputType.TYPE_TEXT_VARIATION_URI
                         hint = getString(R.string.add_website_hint)
                     }
-                    AlertDialog.Builder(this)
+                    wrapper.addView(input)
+                    MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.card_homepage)
-                        .setView(input)
+                        .setView(wrapper)
                         .setPositiveButton(R.string.ok) { _, _ ->
                             val url = input.text?.toString()?.trim().orEmpty()
                             if (url.isNotBlank()) {
@@ -229,7 +234,7 @@ class SettingsActivity : AppCompatActivity() {
         val labels = options.map { getString(R.string.zoom_percent, it) }.toTypedArray()
         val current = settings.zoom
         val checked = options.indexOfFirst { it >= current }.coerceAtLeast(0)
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.card_default_zoom)
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 lifecycleScope.launch {

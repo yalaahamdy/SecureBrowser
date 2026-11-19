@@ -150,25 +150,41 @@ object SecureWebViewFactory {
                 val escapedUrl = url.replace("\\", "\\\\").replace("'", "\\'")
                 val escapedDisp = (contentDisposition ?: "").replace("\\", "\\\\").replace("'", "\\'")
                 val escapedMime = (mimeType ?: "").replace("\\", "\\\\").replace("'", "\\'")
-                val escapedUa = (userAgent ?: "").replace("\\", "\\\\").replace("'", "\\'")
+                val escapedSrc = (source ?: "").replace("\\", "\\\\").replace("'", "\\'")
                 val fetchBlobScript = """
                     (function() {
                         try {
                             fetch('$escapedUrl')
                                 .then(function(res) { return res.blob(); })
                                 .then(function(blob) {
-                                    var reader = new FileReader();
-                                    reader.onloadend = function() {
-                                        if (reader.result) {
-                                            window.$JS_BLOB_BRIDGE_NAME.onBlobDataReady(
-                                                reader.result,
-                                                '$escapedDisp',
-                                                blob.type || '$escapedMime',
-                                                '$escapedUa'
-                                            );
+                                    var totalSize = blob.size || 0;
+                                    var mime = blob.type || '$escapedMime' || 'application/octet-stream';
+                                    var dlId = window.$JS_BLOB_BRIDGE_NAME.onBlobStart('$escapedDisp', mime, totalSize, '$escapedSrc');
+                                    if (dlId < 0) return;
+                                    var chunkSize = 262144;
+                                    var offset = 0;
+                                    function readNext() {
+                                        if (offset >= totalSize) {
+                                            window.$JS_BLOB_BRIDGE_NAME.onBlobComplete(dlId);
+                                            return;
                                         }
-                                    };
-                                    reader.readAsDataURL(blob);
+                                        var slice = blob.slice(offset, Math.min(offset + chunkSize, totalSize));
+                                        var reader = new FileReader();
+                                        reader.onloadend = function() {
+                                            if (reader.result) {
+                                                window.$JS_BLOB_BRIDGE_NAME.onBlobChunk(dlId, reader.result);
+                                                offset += chunkSize;
+                                                readNext();
+                                            } else {
+                                                window.$JS_BLOB_BRIDGE_NAME.onBlobError(dlId);
+                                            }
+                                        };
+                                        reader.onerror = function() {
+                                            window.$JS_BLOB_BRIDGE_NAME.onBlobError(dlId);
+                                        };
+                                        reader.readAsDataURL(slice);
+                                    }
+                                    readNext();
                                 })
                                 .catch(function(err) {});
                         } catch (e) {}
@@ -218,6 +234,45 @@ object SecureWebViewFactory {
         private val controller: BrowserController,
         private val onBeforeAdoptDownload: (() -> Unit)?
     ) {
+        @JavascriptInterface
+        fun onBlobStart(
+            contentDisposition: String?,
+            mimeType: String?,
+            totalBytes: Long,
+            sourceUrl: String?
+        ): Long {
+            val suggested = BrowserDownloadManager.parseContentDisposition(contentDisposition)
+            val id = ServiceLocator.downloadManager.startBlobStream(
+                suggestedName = suggested,
+                mimeType = mimeType,
+                totalBytes = totalBytes,
+                sourceUrl = sourceUrl?.takeIf { it.isNotBlank() } ?: controller.currentSourceUrl()
+            )
+            webView.post {
+                onBeforeAdoptDownload?.invoke()
+                controller.onDownloadStartedInWebView(webView)
+            }
+            return id
+        }
+
+        @JavascriptInterface
+        fun onBlobChunk(id: Long, base64Chunk: String?) {
+            if (id < 0 || base64Chunk.isNullOrBlank()) return
+            ServiceLocator.downloadManager.appendBlobChunk(id, base64Chunk)
+        }
+
+        @JavascriptInterface
+        fun onBlobComplete(id: Long) {
+            if (id < 0) return
+            ServiceLocator.downloadManager.finishBlobStream(id)
+        }
+
+        @JavascriptInterface
+        fun onBlobError(id: Long) {
+            if (id < 0) return
+            ServiceLocator.downloadManager.failBlobStream(id)
+        }
+
         @JavascriptInterface
         fun onBlobDataReady(
             dataUrl: String?,

@@ -9,8 +9,8 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.securebrowser.app.R
 import com.securebrowser.app.data.repository.SettingsRepository
 import com.securebrowser.app.di.ServiceLocator
@@ -307,7 +307,7 @@ class ExternalNavigationHandler(
             return
         }
         mainHandler.post {
-            AlertDialog.Builder(activity)
+            MaterialAlertDialogBuilder(activity)
                 .setTitle(activity.getString(R.string.external_confirm_title))
                 .setMessage(activity.getString(R.string.external_confirm_message, appLabel))
                 .setPositiveButton(activity.getString(R.string.external_confirm_open)) { _, _ -> onConfirmed() }
@@ -334,7 +334,7 @@ class ExternalNavigationHandler(
             } else {
                 activity.getString(R.string.external_no_app_message, link)
             }
-            AlertDialog.Builder(activity)
+            MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.external_no_app_title)
                 .setMessage(message)
                 .setPositiveButton(R.string.ok, null)

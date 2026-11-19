@@ -52,7 +52,7 @@
         android:layout_marginStart="14dp"
         android:layout_marginEnd="14dp"
         android:layout_marginTop="8dp"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+        style="@style/Widget.SecureBrowser.TextInputLayout.Dense"
         android:hint="@string/whitelist_search_hint"
         android:visibility="gone">
 

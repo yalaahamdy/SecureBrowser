@@ -32,7 +32,7 @@ class BlockedActivityActivity : AppCompatActivity() {
         binding.btnToolbarBack.setOnClickListener { finish() }
         binding.btnToolbarAction.isVisible = true
         binding.btnToolbarAction.setOnClickListener {
-            androidx.appcompat.app.AlertDialog.Builder(this)
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.card_clear_blocked))
                 .setMessage(R.string.confirm_clear_blocked)
                 .setPositiveButton(R.string.ok) { _, _ ->

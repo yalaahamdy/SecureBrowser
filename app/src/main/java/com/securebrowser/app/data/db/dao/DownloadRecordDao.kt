@@ -59,6 +59,9 @@ interface DownloadRecordDao {
     @Query("DELETE FROM downloads WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("DELETE FROM downloads WHERE state IN ('COMPLETED', 'FAILED', 'BLOCKED')")
+    suspend fun clearFinished()
+
     @Query("DELETE FROM downloads")
     suspend fun clearAll()
 }

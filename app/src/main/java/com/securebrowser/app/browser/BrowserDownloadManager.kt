@@ -55,10 +55,35 @@ class BrowserDownloadManager(
     private val scope: CoroutineScope
 ) {
 
+    data class LiveMetrics(
+        val bytesPerSecond: Long,
+        val etaSeconds: Long
+    )
+
     private val jobs = ConcurrentHashMap<Long, Job>()
     private val pauseFlags = ConcurrentHashMap<Long, Boolean>()
+    private val liveMetrics = ConcurrentHashMap<Long, LiveMetrics>()
+    private val fullUrls = ConcurrentHashMap<Long, String>()
+    private val publicPaths = ConcurrentHashMap<Long, String>()
+    private val blobStreams = ConcurrentHashMap<Long, BlobStreamSession>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val inMemoryDataUrls = ConcurrentHashMap<Long, String>()
+
+    private data class BlobStreamSession(
+        val file: File,
+        val output: java.io.FileOutputStream,
+        val totalBytes: Long,
+        var writtenBytes: Long = 0L,
+        val mimeType: String?,
+        var lastUiUpdateMs: Long = 0L
+    )
+
+    @Volatile
+    var onDownloadStartedListener: ((id: Long, fileName: String) -> Unit)? = null
+
+    fun getLiveMetrics(id: Long): LiveMetrics? = liveMetrics[id]
+
+    fun getPublicPath(id: Long): String? = publicPaths[id]
 
     private fun downloadsDir(): File =
         context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -99,6 +124,11 @@ class BrowserDownloadManager(
                     )
                     if (isDataUrl) {
                         inMemoryDataUrls[id] = url
+                    } else {
+                        fullUrls[id] = url
+                    }
+                    mainHandler.post {
+                        onDownloadStartedListener?.invoke(id, fileName)
                     }
                     toast(context.getString(R.string.toast_download_started))
                     startTransfer(id, userAgent)
@@ -111,6 +141,8 @@ class BrowserDownloadManager(
                     )
                     if (isDataUrl) {
                         inMemoryDataUrls[id] = url
+                    } else {
+                        fullUrls[id] = url
                     }
                     toast(context.getString(R.string.toast_download_needs_approval))
                 }
@@ -197,6 +229,8 @@ class BrowserDownloadManager(
     fun pause(id: Long) {
         pauseFlags[id] = true
         jobs.remove(id)?.cancel()
+        liveMetrics.remove(id)
+        DownloadNotificationHelper.cancel(context, id)
         scope.launch(Dispatchers.IO) {
             val record = repository.findById(id) ?: return@launch
             if (record.state == DownloadRepository.STATE_DOWNLOADING) {
@@ -228,16 +262,98 @@ class BrowserDownloadManager(
         }
     }
 
-    /** حذف السجل والملف المحلي معًا. */
+    /** حذف السجل والملف المحلي معًا (أو إلغاء التنزيل الجاري فورًا). */
     fun delete(id: Long) {
         scope.launch(Dispatchers.IO) {
             pauseFlags[id] = true
             jobs.remove(id)?.cancelAndJoin()
+            liveMetrics.remove(id)
+            DownloadNotificationHelper.cancel(context, id)
             val record = repository.findById(id) ?: return@launch
             record.filePath?.let { relative ->
                 File(downloadsDir(), relative).delete()
             }
             repository.delete(id)
+        }
+    }
+
+    /** مسح سجل التنزيلات المنتهية (المكتملة/الفاشلة/المحظورة) دون المساس بالملفات المحفوظة في مجلد Download بالهاتف. */
+    fun clearFinished() {
+        scope.launch(Dispatchers.IO) {
+            repository.clearFinished()
+        }
+    }
+
+    /** إضافة رابط تنزيل مباشر يدويًا من شاشة التنزيلات مع إمكانية تحديد اسم الملف. */
+    fun enqueueManualDownload(rawUrl: String, customFileName: String? = null) {
+        val trimmed = rawUrl.trim()
+        if (trimmed.isBlank()) return
+        val normalizedUrl = if (!trimmed.contains("://") && !trimmed.startsWith("data:", true)) {
+            "https://$trimmed"
+        } else {
+            trimmed
+        }
+        val contentDisp = customFileName?.trim()?.takeIf { it.isNotBlank() }?.let {
+            "attachment; filename=\"$it\""
+        }
+        handleDownload(
+            url = normalizedUrl,
+            userAgent = WEB_UA,
+            contentDisposition = contentDisp,
+            mimeType = null,
+            contentLength = -1L,
+            sourceUrl = normalizedUrl,
+            sourceAllowed = true
+        )
+    }
+
+    /** إعادة تسمية ملف منزّل (في المجلد المحلي ومجلد Download العام وقاعدة البيانات). */
+    fun renameDownload(id: Long, newRawName: String, callback: (Boolean) -> Unit) {
+        scope.launch(Dispatchers.IO) {
+            val record = repository.findById(id)
+            if (record == null) {
+                mainHandler.post { callback(false) }
+                return@launch
+            }
+            val oldName = record.filePath?.takeIf { it.isNotBlank() } ?: record.fileName
+            val oldExt = oldName.substringAfterLast('.', "")
+            var sanitized = sanitizeFileName(newRawName.trim())
+            if (!sanitized.contains('.') && oldExt.isNotBlank()) {
+                sanitized = "$sanitized.$oldExt"
+            }
+
+            val localOld = File(downloadsDir(), oldName)
+            var finalLocalName = sanitized
+            if (localOld.exists()) {
+                val localNew = uniqueFile(sanitized)
+                if (localOld.renameTo(localNew)) {
+                    finalLocalName = localNew.name
+                }
+            }
+
+            try {
+                val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val pubOld = File(publicDir, oldName)
+                if (pubOld.exists()) {
+                    val pubNew = File(publicDir, finalLocalName)
+                    pubOld.renameTo(pubNew)
+                    MediaScannerConnection.scanFile(
+                        context,
+                        arrayOf(pubNew.absolutePath),
+                        arrayOf(record.mimeType ?: guessMime(finalLocalName)),
+                        null
+                    )
+                }
+            } catch (_: Exception) {
+            }
+
+            repository.updateFileMetadata(
+                id = id,
+                fileName = finalLocalName,
+                filePath = finalLocalName,
+                mimeType = record.mimeType ?: guessMime(finalLocalName)
+            )
+            mainHandler.post { callback(true) }
         }
     }
 
@@ -309,6 +425,7 @@ class BrowserDownloadManager(
     /** "موقع الملف" — المسار الفعلي للملف على الجهاز (العام في Download أو المحلي). */
     fun fileLocation(id: Long, callback: (String?) -> Unit) {
         scope.launch(Dispatchers.IO) {
+            val cachedPublic = publicPaths[id]
             val record = repository.findById(id)
             val fileName = record?.filePath?.takeIf { it.isNotBlank() } ?: record?.fileName
             val localFile = fileName?.let { File(downloadsDir(), it) }
@@ -316,12 +433,113 @@ class BrowserDownloadManager(
                 File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), it)
             }
             val displayPath = when {
+                !cachedPublic.isNullOrBlank() -> cachedPublic
                 publicFile != null && publicFile.exists() -> publicFile.absolutePath
                 localFile != null && localFile.exists() ->
                     "${Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath}/${localFile.name}"
                 else -> null
             }
             mainHandler.post { callback(displayPath) }
+        }
+    }
+
+    // ————————————————— جسر تنزيل روابط blob: المقسّم (Chunked Streaming) —————————————————
+
+    fun startBlobStream(
+        suggestedName: String?,
+        mimeType: String?,
+        totalBytes: Long,
+        sourceUrl: String?
+    ): Long {
+        val cleanMime = mimeType?.substringBefore(';')?.trim()?.takeIf { it.isNotBlank() }
+        val fileName = resolveFileName("blob://local", suggestedName?.let { "attachment; filename=\"$it\"" }, cleanMime)
+        val file = uniqueFile(fileName)
+        file.parentFile?.mkdirs()
+        file.createNewFile()
+
+        val id = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+            repository.insert(
+                record(
+                    url = "blob:${file.name}",
+                    fileName = file.name,
+                    sourceUrl = sourceUrl,
+                    mimeType = cleanMime ?: guessMime(file.name),
+                    contentLength = totalBytes
+                ).copy(
+                    state = DownloadRepository.STATE_DOWNLOADING,
+                    filePath = file.name
+                )
+            )
+        }
+        blobStreams[id] = BlobStreamSession(
+            file = file,
+            output = java.io.FileOutputStream(file, false),
+            totalBytes = totalBytes,
+            mimeType = cleanMime ?: guessMime(file.name)
+        )
+        mainHandler.post {
+            onDownloadStartedListener?.invoke(id, file.name)
+        }
+        DownloadNotificationHelper.showProgress(context, id, file.name, 0L, totalBytes.takeIf { it > 0 }, null)
+        toast(context.getString(R.string.toast_download_started))
+        return id
+    }
+
+    fun appendBlobChunk(id: Long, base64Chunk: String) {
+        val session = blobStreams[id] ?: return
+        try {
+            val cleanBase64 = if (base64Chunk.contains(",")) base64Chunk.substringAfter(',') else base64Chunk
+            val bytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+            if (bytes.isNotEmpty()) {
+                session.output.write(bytes)
+                session.writtenBytes += bytes.size
+                val now = System.currentTimeMillis()
+                if (now - session.lastUiUpdateMs >= PROGRESS_DB_INTERVAL_MS) {
+                    session.lastUiUpdateMs = now
+                    val total = session.totalBytes.takeIf { it > 0 }
+                    val written = session.writtenBytes
+                    scope.launch(Dispatchers.IO) {
+                        repository.updateProgress(id, written, total)
+                    }
+                    DownloadNotificationHelper.showProgress(context, id, session.file.name, written, total, null)
+                }
+            }
+        } catch (_: Exception) {
+            failBlobStream(id)
+        }
+    }
+
+    fun finishBlobStream(id: Long) {
+        val session = blobStreams.remove(id) ?: return
+        scope.launch(Dispatchers.IO) {
+            try {
+                session.output.flush()
+                session.output.close()
+                val finalSize = session.file.length().coerceAtLeast(session.writtenBytes)
+                repository.updateProgress(id, finalSize, finalSize)
+                repository.updateState(id, DownloadRepository.STATE_COMPLETED)
+                val pub = publishToPublicDownloads(context, session.file, session.mimeType)
+                if (pub != null) publicPaths[id] = pub
+                DownloadNotificationHelper.showCompleted(context, id, session.file.name)
+                toast(context.getString(R.string.toast_download_completed, session.file.name))
+            } catch (_: Exception) {
+                repository.updateState(id, DownloadRepository.STATE_FAILED)
+                DownloadNotificationHelper.showFailed(context, id, session.file.name)
+                toast(context.getString(R.string.toast_download_failed, session.file.name))
+            }
+        }
+    }
+
+    fun failBlobStream(id: Long) {
+        val session = blobStreams.remove(id) ?: return
+        try {
+            session.output.close()
+        } catch (_: Exception) {
+        }
+        scope.launch(Dispatchers.IO) {
+            repository.updateState(id, DownloadRepository.STATE_FAILED)
+            DownloadNotificationHelper.showFailed(context, id, session.file.name)
+            toast(context.getString(R.string.toast_download_failed, session.file.name))
         }
     }
 
@@ -335,23 +553,25 @@ class BrowserDownloadManager(
                 return@launch
             }
             val path = publishToPublicDownloads(context, file, record.mimeType)
+            if (path != null) publicPaths[id] = path
             mainHandler.post {
                 callback(path != null, path)
             }
         }
     }
 
-    // ————————————————— محرك النقل الفعلي (مزدوج: مباشر + DownloadManager النظامي الاحتياطي) —————————————————
+    // ————————————————— محرك النقل الفعلي (متعدد الاستراتيجيات + DownloadManager النظامي) —————————————————
 
     private fun startTransfer(id: Long, customUserAgent: String? = null) {
         val job = scope.launch(Dispatchers.IO) {
             val record = repository.findById(id) ?: return@launch
+            val rawTargetUrl = fullUrls[id] ?: record.url
             var targetFile: File? = null
             try {
                 val existing = if ((record.downloadedBytes ?: 0) > 0 && !record.filePath.isNullOrBlank()) {
                     File(downloadsDir(), record.filePath).takeIf { it.exists() && it.length() > 0 }
                 } else null
-                var resumeFrom = existing?.length() ?: 0L
+                val resumeFrom = existing?.length() ?: 0L
 
                 var file = existing ?: uniqueFile(resolveLocalName(record))
                 targetFile = file
@@ -361,167 +581,71 @@ class BrowserDownloadManager(
                     repository.updateFilePath(id, file.name)
                 }
 
-                // 1. معالجة روابط Data URLs في الذاكرة (بما فيها محوّلات blob:)
+                // 1. معالجة روابط Data URLs في الذاكرة
                 val dataPayload = inMemoryDataUrls.remove(id)
-                if (dataPayload != null || record.url.startsWith("data:", ignoreCase = true)) {
-                    val rawData = dataPayload ?: record.url
+                if (dataPayload != null || rawTargetUrl.startsWith("data:", ignoreCase = true)) {
+                    val rawData = dataPayload ?: rawTargetUrl
                     processDataUrl(id, rawData, file, record)
                     return@launch
                 }
 
-                // 2. معالجة طلب الشبكة مع الـ Redirects المتعاقبة (حتى 15 مرة) وإعادة المحاولة التلقائية عند رفض Range
-                var currentUrl = toSafeHttpUrl(record.url)
-                var redirects = 0
-                val maxRedirects = 15
-                var conn: HttpURLConnection? = null
-                var code = 0
-
-                while (redirects < maxRedirects) {
-                    val targetUri = URL(currentUrl)
-                    val c = (targetUri.openConnection() as HttpURLConnection).apply {
-                        connectTimeout = 25_000
-                        readTimeout = 45_000
-                        instanceFollowRedirects = false // تتبع يدوي شامل لـ HTTP<->HTTPS و 301/302/303/307/308
-                        useCaches = false
-                    }
-
-                    if (resumeFrom > 0) {
-                        c.setRequestProperty("Range", "bytes=$resumeFrom-")
-                    }
-                    val cookie = resolveCookiesForUrl(currentUrl, record.sourceUrl)
-                    if (!cookie.isNullOrBlank()) {
-                        c.setRequestProperty("Cookie", cookie)
-                    }
-                    c.setRequestProperty("User-Agent", customUserAgent?.takeIf { it.isNotBlank() } ?: WEB_UA)
-                    c.setRequestProperty("Accept", "*/*")
-                    val referer = record.sourceUrl?.takeIf { it.startsWith("http", ignoreCase = true) }
-                    if (!referer.isNullOrBlank()) {
-                        c.setRequestProperty("Referer", referer)
-                    }
-
-                    c.connect()
-                    code = c.responseCode
-
-                    // التوجيهات: 301, 302, 303, 307, 308
-                    if (code in 301..303 || code == 307 || code == 308) {
-                        val location = c.getHeaderField("Location")
-                        c.disconnect()
-                        if (location.isNullOrBlank()) {
-                            throw IllegalStateException("Redirected with empty location header ($code)")
-                        }
-                        val resolvedNext = URL(targetUri, location).toString()
-                        currentUrl = toSafeHttpUrl(resolvedNext)
-                        redirects++
-                        continue
-                    }
-
-                    // إذا رفض الخادم طلب الاستئناف الجزئي (416 أو خطأ بسبب Range)، أعد الطلب من الصفر تلقائيًا
-                    if (resumeFrom > 0 && (code == 416 || code == 400 || code == 403)) {
-                        c.disconnect()
-                        resumeFrom = 0L
-                        file.writeBytes(ByteArray(0))
-                        continue
-                    }
-
-                    conn = c
-                    break
+                // 2. المحاولة الأولى: بالـ Cookies الكاملة + Referer
+                val firstTry = runDirectHttpTransfer(
+                    id = id,
+                    record = record,
+                    rawUrl = rawTargetUrl,
+                    fileInitial = file,
+                    initialResumeFrom = resumeFrom,
+                    customUserAgent = customUserAgent,
+                    sendReferer = true
+                )
+                file = firstTry.finalFile
+                targetFile = file
+                if (firstTry.pausedByUser) return@launch
+                if (firstTry.completed) {
+                    completeTransferSuccess(id, file, firstTry.effectiveMime)
+                    return@launch
                 }
 
-                val activeConn = conn ?: throw IllegalStateException("Too many redirects")
-
-                if (code !in 200..299 && code != 206) {
-                    activeConn.disconnect()
-                    throw IllegalStateException("http_$code")
-                }
-
-                // تحديث اسم الملف الحقيقي ونوعه من ترويسات الاستجابة النهائية بعد انتهاء التوجيهات (Redirects)
-                val serverDisposition = activeConn.getHeaderField("Content-Disposition")
-                val serverMime = activeConn.contentType
-                    ?.substringBefore(';')
-                    ?.trim()
-                    ?.lowercase()
-                    ?.takeIf { it.isNotBlank() && it != "*/*" && it != "application/octet-stream" }
-                val effectiveMime = serverMime
-                    ?: record.mimeType?.takeIf { it.isNotBlank() && it != "*/*" }
-
-                if (resumeFrom == 0L) {
-                    val refinedName = resolveRefinedFileName(
-                        initialName = record.fileName,
-                        finalUrl = currentUrl,
-                        contentDisposition = serverDisposition,
-                        mimeType = effectiveMime ?: activeConn.contentType
-                    )
-                    if (refinedName != file.name) {
-                        val renamedFile = uniqueFile(refinedName)
-                        if (file.renameTo(renamedFile)) {
-                            file = renamedFile
-                            targetFile = renamedFile
-                        }
-                    }
-                    repository.updateFileMetadata(
-                        id = id,
-                        fileName = file.name,
-                        filePath = file.name,
-                        mimeType = effectiveMime ?: guessMime(file.name)
-                    )
-                }
-
-                val serverTotal = activeConn.contentLengthLong
-                val total = if (resumeFrom > 0 && serverTotal > 0) serverTotal + resumeFrom
-                else if (serverTotal > 0) serverTotal
-                else record.sizeBytes?.takeIf { it > 0 }
-                if (total != null && total > 0) {
-                    repository.updateProgress(id, resumeFrom, total)
-                }
-
-                pauseFlags[id] = false
-                var downloaded = resumeFrom
-                var lastDbUpdate = 0L
-                val append = resumeFrom > 0 && code == 206
-                if (resumeFrom > 0 && !append) {
-                    downloaded = 0
+                // 3. المحاولة الثانية: إعادة ذكية بدون Referer وبدون Range (تحل رفض السيرفرات والـ CDN لطلب الإحالة)
+                if (pauseFlags[id] != true) {
                     file.writeBytes(ByteArray(0))
-                }
-
-                activeConn.inputStream.use { input ->
-                    java.io.FileOutputStream(file, append).use { output ->
-                        val buffer = ByteArray(64 * 1024)
-                        while (true) {
-                            if (pauseFlags[id] == true) {
-                                repository.updateStateAndProgress(
-                                    id, DownloadRepository.STATE_PAUSED, downloaded
-                                )
-                                return@launch
-                            }
-                            val read = input.read(buffer)
-                            if (read == -1) break
-                            output.write(buffer, 0, read)
-                            downloaded += read
-                            val now = System.currentTimeMillis()
-                            if (now - lastDbUpdate > PROGRESS_DB_INTERVAL_MS) {
-                                repository.updateProgress(id, downloaded, total)
-                                lastDbUpdate = now
-                            }
-                        }
-                        output.flush()
+                    val retryTry = runDirectHttpTransfer(
+                        id = id,
+                        record = record,
+                        rawUrl = rawTargetUrl,
+                        fileInitial = file,
+                        initialResumeFrom = 0L,
+                        customUserAgent = customUserAgent,
+                        sendReferer = false
+                    )
+                    file = retryTry.finalFile
+                    targetFile = file
+                    if (retryTry.pausedByUser) return@launch
+                    if (retryTry.completed) {
+                        completeTransferSuccess(id, file, retryTry.effectiveMime)
+                        return@launch
                     }
                 }
 
-                val finalSize = file.length().takeIf { it > 0 } ?: downloaded
-                repository.updateProgress(id, finalSize, total ?: finalSize)
-                repository.updateState(id, DownloadRepository.STATE_COMPLETED)
+                // 4. المحاولة الثالثة: المحرك الاحتياطي DownloadManager النظامي لأندرويد
+                val isHttp = rawTargetUrl.startsWith("http://", ignoreCase = true) ||
+                    rawTargetUrl.startsWith("https://", ignoreCase = true)
+                if (isHttp && pauseFlags[id] != true) {
+                    val fallbackSuccess = runSystemDownloadManagerFallback(id, record, rawTargetUrl, customUserAgent)
+                    if (fallbackSuccess) return@launch
+                }
 
-                // حفظ نسخة مؤكدة في مجلد التنزيلات العام الافتراضي بالهاتف (Download) وإشعار النظام
-                publishToPublicDownloads(context, file, effectiveMime ?: guessMime(file.name))
-                toast(context.getString(R.string.toast_download_completed, file.name))
+                throw IllegalStateException("All download strategies failed")
             } catch (e: kotlinx.coroutines.CancellationException) {
+                liveMetrics.remove(id)
                 throw e
             } catch (e: Exception) {
-                // المحرك الاحتياطي: إذا تعثّر الاتصال المباشر وكان الرابط HTTP/HTTPS، استخدم DownloadManager النظامي
-                val isHttp = record.url.startsWith("http://", ignoreCase = true) ||
-                    record.url.startsWith("https://", ignoreCase = true)
+                liveMetrics.remove(id)
+                val isHttp = rawTargetUrl.startsWith("http://", ignoreCase = true) ||
+                    rawTargetUrl.startsWith("https://", ignoreCase = true)
                 if (isHttp && pauseFlags[id] != true) {
-                    val fallbackSuccess = runSystemDownloadManagerFallback(id, record, customUserAgent)
+                    val fallbackSuccess = runSystemDownloadManagerFallback(id, record, rawTargetUrl, customUserAgent)
                     if (fallbackSuccess) return@launch
                 }
 
@@ -530,13 +654,252 @@ class BrowserDownloadManager(
                     repository.updateState(id, DownloadRepository.STATE_FAILED)
                 }
                 val name = targetFile?.name ?: record.fileName
+                DownloadNotificationHelper.showFailed(context, id, name)
                 toast(context.getString(R.string.toast_download_failed, name))
             } finally {
+                liveMetrics.remove(id)
                 jobs.remove(id)
                 pauseFlags.remove(id)
             }
         }
         jobs[id] = job
+    }
+
+    private data class DirectTransferResult(
+        val completed: Boolean,
+        val pausedByUser: Boolean,
+        val finalFile: File,
+        val effectiveMime: String?
+    )
+
+    private suspend fun runDirectHttpTransfer(
+        id: Long,
+        record: DownloadRecordEntity,
+        rawUrl: String,
+        fileInitial: File,
+        initialResumeFrom: Long,
+        customUserAgent: String?,
+        sendReferer: Boolean
+    ): DirectTransferResult {
+        var file = fileInitial
+        var resumeFrom = initialResumeFrom
+        var currentUrl = toSafeHttpUrl(rawUrl)
+        var redirects = 0
+        val maxRedirects = 15
+        var conn: HttpURLConnection? = null
+        var code = 0
+        val accumulatedCookies = LinkedHashMap<String, String>()
+
+        return try {
+            try {
+                CookieManager.getInstance().flush()
+            } catch (_: Exception) {
+            }
+
+            while (redirects < maxRedirects) {
+                val targetUri = URL(currentUrl)
+                val c = (targetUri.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 25_000
+                    readTimeout = 45_000
+                    instanceFollowRedirects = false
+                    useCaches = false
+                }
+
+                if (resumeFrom > 0) {
+                    c.setRequestProperty("Range", "bytes=$resumeFrom-")
+                }
+                val cookieHeader = buildMergedCookieHeader(currentUrl, record.sourceUrl, accumulatedCookies)
+                if (!cookieHeader.isNullOrBlank()) {
+                    c.setRequestProperty("Cookie", cookieHeader)
+                }
+                c.setRequestProperty("User-Agent", customUserAgent?.takeIf { it.isNotBlank() } ?: WEB_UA)
+                c.setRequestProperty("Accept", "*/*")
+                c.setRequestProperty("Accept-Language", "ar,en-US;q=0.9,en;q=0.8")
+                if (sendReferer) {
+                    val referer = record.sourceUrl?.takeIf { it.startsWith("http", ignoreCase = true) }
+                    if (!referer.isNullOrBlank()) {
+                        c.setRequestProperty("Referer", referer)
+                    }
+                }
+
+                c.connect()
+                code = c.responseCode
+                collectSetCookies(c, currentUrl, accumulatedCookies)
+
+                if (code in 301..303 || code == 307 || code == 308) {
+                    val location = c.getHeaderField("Location")
+                    c.disconnect()
+                    if (location.isNullOrBlank()) {
+                        return DirectTransferResult(false, false, file, null)
+                    }
+                    currentUrl = toSafeHttpUrl(URL(targetUri, location).toString())
+                    redirects++
+                    continue
+                }
+
+                if (resumeFrom > 0 && (code == 416 || code == 400 || code == 403)) {
+                    c.disconnect()
+                    resumeFrom = 0L
+                    file.writeBytes(ByteArray(0))
+                    continue
+                }
+
+                conn = c
+                break
+            }
+
+            val activeConn = conn ?: return DirectTransferResult(false, false, file, null)
+            if (code !in 200..299 && code != 206) {
+                activeConn.disconnect()
+                return DirectTransferResult(false, false, file, null)
+            }
+
+            val serverDisposition = activeConn.getHeaderField("Content-Disposition")
+            val rawContentType = activeConn.contentType?.substringBefore(';')?.trim()?.lowercase()
+            val expectedExt = record.fileName.substringAfterLast('.', "").lowercase()
+            val expectsNonHtmlFile = expectedExt.isNotBlank() &&
+                expectedExt !in setOf("html", "htm", "xhtml", "php", "asp", "aspx", "jsp")
+
+            // إذا طلبنا ملفًا ثنائيًا محددًا (مثل PDF/ZIP/APK) وعاد الخادم بصفحة HTML بدون مرفق -> فشل استجابة مزيفة
+            if (expectsNonHtmlFile &&
+                rawContentType == "text/html" &&
+                serverDisposition?.contains("attachment", ignoreCase = true) != true
+            ) {
+                activeConn.disconnect()
+                return DirectTransferResult(false, false, file, null)
+            }
+
+            val serverMime = rawContentType?.takeIf {
+                it.isNotBlank() && it != "*/*" && it != "application/octet-stream"
+            }
+            val effectiveMime = serverMime ?: record.mimeType?.takeIf { it.isNotBlank() && it != "*/*" }
+
+            if (resumeFrom == 0L) {
+                val refinedName = resolveRefinedFileName(
+                    initialName = record.fileName,
+                    finalUrl = currentUrl,
+                    contentDisposition = serverDisposition,
+                    mimeType = effectiveMime ?: activeConn.contentType
+                )
+                if (refinedName != file.name) {
+                    val renamedFile = uniqueFile(refinedName)
+                    if (file.renameTo(renamedFile)) {
+                        file = renamedFile
+                    }
+                }
+                repository.updateFileMetadata(
+                    id = id,
+                    fileName = file.name,
+                    filePath = file.name,
+                    mimeType = effectiveMime ?: guessMime(file.name)
+                )
+            }
+
+            val serverTotal = activeConn.contentLengthLong
+            val total = if (resumeFrom > 0 && serverTotal > 0) serverTotal + resumeFrom
+            else if (serverTotal > 0) serverTotal
+            else record.sizeBytes?.takeIf { it > 0 }
+            if (total != null && total > 0) {
+                repository.updateProgress(id, resumeFrom, total)
+            }
+
+            pauseFlags[id] = false
+            var downloaded = resumeFrom
+            var lastDbUpdate = 0L
+            var speedWindowStartMs = System.currentTimeMillis()
+            var speedWindowStartBytes = resumeFrom
+            var smoothedBps = 0L
+            val append = resumeFrom > 0 && code == 206
+            if (resumeFrom > 0 && !append) {
+                downloaded = 0
+                speedWindowStartBytes = 0
+                file.writeBytes(ByteArray(0))
+            }
+
+            DownloadNotificationHelper.showProgress(
+                context = context,
+                id = id,
+                fileName = file.name,
+                downloadedBytes = downloaded,
+                totalBytes = total,
+                speedText = null
+            )
+
+            activeConn.inputStream.use { input ->
+                java.io.FileOutputStream(file, append).use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        if (pauseFlags[id] == true) {
+                            liveMetrics.remove(id)
+                            DownloadNotificationHelper.cancel(context, id)
+                            repository.updateStateAndProgress(
+                                id, DownloadRepository.STATE_PAUSED, downloaded
+                            )
+                            return DirectTransferResult(false, true, file, effectiveMime)
+                        }
+                        val read = input.read(buffer)
+                        if (read == -1) break
+                        output.write(buffer, 0, read)
+                        downloaded += read
+                        val now = System.currentTimeMillis()
+                        if (now - lastDbUpdate > PROGRESS_DB_INTERVAL_MS) {
+                            val elapsedMs = (now - speedWindowStartMs).coerceAtLeast(1L)
+                            val deltaBytes = (downloaded - speedWindowStartBytes).coerceAtLeast(0L)
+                            val instantBps = (deltaBytes * 1000L) / elapsedMs
+                            smoothedBps = if (smoothedBps == 0L) instantBps
+                            else ((smoothedBps * 6L + instantBps * 4L) / 10L)
+                            speedWindowStartMs = now
+                            speedWindowStartBytes = downloaded
+
+                            val etaSec = if (total != null && total > downloaded && smoothedBps > 0L) {
+                                (total - downloaded) / smoothedBps
+                            } else -1L
+                            liveMetrics[id] = LiveMetrics(smoothedBps, etaSec)
+
+                            repository.updateProgress(id, downloaded, total)
+                            val speedStr = if (smoothedBps > 0) formatBytesPerSec(smoothedBps) else null
+                            DownloadNotificationHelper.showProgress(
+                                context = context,
+                                id = id,
+                                fileName = file.name,
+                                downloadedBytes = downloaded,
+                                totalBytes = total,
+                                speedText = speedStr
+                            )
+                            lastDbUpdate = now
+                        }
+                    }
+                    output.flush()
+                }
+            }
+
+            if (file.length() <= 0L && downloaded <= 0L) {
+                return DirectTransferResult(false, false, file, effectiveMime)
+            }
+
+            DirectTransferResult(true, false, file, effectiveMime ?: guessMime(file.name))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            DirectTransferResult(false, false, file, null)
+        } finally {
+            try {
+                conn?.disconnect()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private suspend fun completeTransferSuccess(id: Long, file: File, effectiveMime: String?) {
+        liveMetrics.remove(id)
+        fullUrls.remove(id)
+        val finalSize = file.length()
+        repository.updateProgress(id, finalSize, finalSize.takeIf { it > 0 })
+        repository.updateState(id, DownloadRepository.STATE_COMPLETED)
+        val pub = publishToPublicDownloads(context, file, effectiveMime ?: guessMime(file.name))
+        if (pub != null) publicPaths[id] = pub
+        DownloadNotificationHelper.showCompleted(context, id, file.name)
+        toast(context.getString(R.string.toast_download_completed, file.name))
     }
 
     /**
@@ -547,16 +910,18 @@ class BrowserDownloadManager(
     private suspend fun runSystemDownloadManagerFallback(
         id: Long,
         record: DownloadRecordEntity,
+        rawUrl: String,
         customUserAgent: String?
     ): Boolean {
         return try {
             val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager ?: return false
-            val safeUrl = toSafeHttpUrl(record.url)
-            val cleanName = sanitizeFileName(record.fileName.ifBlank { "download_${System.currentTimeMillis()}" })
-            val mime = guessMime(cleanName, record.mimeType)
+            val safeUrl = toSafeHttpUrl(rawUrl)
+            val baseName = sanitizeFileName(record.fileName.ifBlank { "download_${System.currentTimeMillis()}" })
+            val uniquePublicName = uniquePublicFileName(baseName)
+            val mime = guessMime(uniquePublicName, record.mimeType)
 
             val req = DownloadManager.Request(Uri.parse(safeUrl)).apply {
-                setTitle(cleanName)
+                setTitle(uniquePublicName)
                 setMimeType(mime)
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setAllowedOverMetered(true)
@@ -570,7 +935,7 @@ class BrowserDownloadManager(
                 if (!referer.isNullOrBlank()) {
                     addRequestHeader("Referer", referer)
                 }
-                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, cleanName)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, uniquePublicName)
             }
 
             val sysId = dm.enqueue(req)
@@ -578,7 +943,8 @@ class BrowserDownloadManager(
             var completed = false
             var failed = false
             var attempts = 0
-            while (!completed && !failed && attempts < 1800) { // حتى 15 دقيقة كحد أقصى
+            var stalledPausedCount = 0
+            while (!completed && !failed && attempts < 1800) {
                 if (pauseFlags[id] == true) {
                     dm.remove(sysId)
                     return false
@@ -592,12 +958,15 @@ class BrowserDownloadManager(
                         val status = if (statusIdx >= 0) c.getInt(statusIdx) else DownloadManager.STATUS_RUNNING
                         val soFar = if (bytesIdx >= 0) c.getLong(bytesIdx).coerceAtLeast(0L) else 0L
                         val total = if (totalIdx >= 0) c.getLong(totalIdx).takeIf { it > 0 } else null
-                        scope.launch(Dispatchers.IO) {
-                            repository.updateProgress(id, soFar, total)
-                        }
+                        repository.updateProgress(id, soFar, total)
                         when (status) {
                             DownloadManager.STATUS_SUCCESSFUL -> completed = true
                             DownloadManager.STATUS_FAILED -> failed = true
+                            DownloadManager.STATUS_PAUSED -> {
+                                stalledPausedCount++
+                                if (stalledPausedCount > 30) failed = true
+                            }
+                            else -> stalledPausedCount = 0
                         }
                     } else {
                         failed = true
@@ -611,34 +980,117 @@ class BrowserDownloadManager(
             }
 
             if (completed) {
-                val localCopy = uniqueFile(cleanName)
+                val localCopy = uniqueFile(uniquePublicName)
+                var copiedOk = false
                 try {
-                    dm.openDownloadedFile(sysId)?.use { pfd ->
-                        java.io.FileInputStream(pfd.fileDescriptor).use { input ->
+                    val sysUri = dm.getUriForDownloadedFile(sysId)
+                    if (sysUri != null) {
+                        context.contentResolver.openInputStream(sysUri)?.use { input ->
                             localCopy.outputStream().use { out -> input.copyTo(out) }
+                            copiedOk = true
                         }
                     }
                 } catch (_: Exception) {
+                }
+                if (!copiedOk) {
+                    try {
+                        dm.openDownloadedFile(sysId)?.use { pfd ->
+                            java.io.FileInputStream(pfd.fileDescriptor).use { input ->
+                                localCopy.outputStream().use { out -> input.copyTo(out) }
+                                copiedOk = true
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+                if (!copiedOk) {
                     val pubFile = File(
                         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                        cleanName
+                        uniquePublicName
                     )
                     if (pubFile.exists()) {
                         pubFile.copyTo(localCopy, overwrite = true)
                     }
                 }
+                val pubPath = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    uniquePublicName
+                ).absolutePath
+                publicPaths[id] = pubPath
                 val finalSize = localCopy.length().takeIf { it > 0 } ?: record.sizeBytes ?: 0L
-                repository.updateFileMetadata(id, localCopy.name, localCopy.name, mime)
+                repository.updateFileMetadata(id, uniquePublicName, localCopy.name, mime)
                 repository.updateProgress(id, finalSize, finalSize.takeIf { it > 0 })
                 repository.updateState(id, DownloadRepository.STATE_COMPLETED)
-                toast(context.getString(R.string.toast_download_completed, cleanName))
+                fullUrls.remove(id)
+                DownloadNotificationHelper.showCompleted(context, id, uniquePublicName)
+                toast(context.getString(R.string.toast_download_completed, uniquePublicName))
                 true
             } else {
                 false
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
+    }
+
+    private fun uniquePublicFileName(baseName: String): String {
+        val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        var candidate = File(publicDir, baseName)
+        if (!candidate.exists()) return baseName
+        val dot = baseName.lastIndexOf('.')
+        val base = if (dot > 0) baseName.substring(0, dot) else baseName
+        val ext = if (dot > 0) baseName.substring(dot) else ""
+        var i = 1
+        while (candidate.exists() && i < 100) {
+            val next = "$base ($i)$ext"
+            candidate = File(publicDir, next)
+            if (!candidate.exists()) return next
+            i++
+        }
+        return "${System.currentTimeMillis()}_$baseName"
+    }
+
+    private fun collectSetCookies(
+        conn: HttpURLConnection,
+        url: String,
+        bag: MutableMap<String, String>
+    ) {
+        try {
+            val cm = CookieManager.getInstance()
+            val headerCookies = conn.headerFields?.entries
+                ?.filter { it.key.equals("Set-Cookie", ignoreCase = true) }
+                ?.flatMap { it.value.orEmpty() }
+                .orEmpty()
+            for (rawCookie in headerCookies) {
+                cm.setCookie(url, rawCookie)
+                val pair = rawCookie.substringBefore(';').trim()
+                val eq = pair.indexOf('=')
+                if (eq > 0) {
+                    bag[pair.substring(0, eq).trim()] = pair.substring(eq + 1).trim()
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun buildMergedCookieHeader(
+        currentUrl: String,
+        sourceUrl: String?,
+        bag: Map<String, String>
+    ): String? {
+        val parts = LinkedHashMap<String, String>()
+        val base = resolveCookiesForUrl(currentUrl, sourceUrl)
+        if (!base.isNullOrBlank()) {
+            for (token in base.split(';')) {
+                val eq = token.indexOf('=')
+                if (eq > 0) {
+                    parts[token.substring(0, eq).trim()] = token.substring(eq + 1).trim()
+                }
+            }
+        }
+        parts.putAll(bag)
+        if (parts.isEmpty()) return null
+        return parts.entries.joinToString("; ") { "${it.key}=${it.value}" }
     }
 
     private suspend fun processDataUrl(
@@ -669,6 +1121,7 @@ class BrowserDownloadManager(
 
         repository.updateState(id, DownloadRepository.STATE_COMPLETED)
         publishToPublicDownloads(context, file, record.mimeType)
+        DownloadNotificationHelper.showCompleted(context, id, file.name)
         toast(context.getString(R.string.toast_download_completed, file.name))
     }
 
@@ -869,14 +1322,7 @@ class BrowserDownloadManager(
         }
     }
 
-    private fun toSafeHttpUrl(rawUrl: String): String {
-        val trimmed = rawUrl.trim()
-        return try {
-            Uri.encode(trimmed, "@#&=*+-_.,:!?()/~'%")
-        } catch (_: Exception) {
-            trimmed.replace(" ", "%20")
-        }
-    }
+    private fun toSafeHttpUrl(rawUrl: String): String = toSafeHttpUrlStatic(rawUrl)
 
     private fun resolveCookiesForUrl(currentUrl: String, sourceUrl: String?): String? {
         val cm = try {
@@ -987,10 +1433,31 @@ class BrowserDownloadManager(
         }
     }
 
+    private fun formatBytesPerSec(bps: Long): String {
+        return when {
+            bps >= 1024L * 1024L -> String.format(java.util.Locale.US, "%.1f MB/s", bps.toDouble() / (1024.0 * 1024.0))
+            bps >= 1024L -> String.format(java.util.Locale.US, "%d KB/s", bps / 1024L)
+            else -> "$bps B/s"
+        }
+    }
+
     companion object {
         private const val PROGRESS_DB_INTERVAL_MS = 500L
         private const val WEB_UA =
             "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Mobile Safari/537.36"
+
+        fun toSafeHttpUrlStatic(rawUrl: String): String {
+            val trimmed = rawUrl.trim()
+            val sb = StringBuilder(trimmed.length)
+            for (ch in trimmed) {
+                when {
+                    ch == ' ' -> sb.append("%20")
+                    ch.code > 127 -> sb.append(java.net.URLEncoder.encode(ch.toString(), "UTF-8"))
+                    else -> sb.append(ch)
+                }
+            }
+            return sb.toString()
+        }
 
         private val DIRECT_DOWNLOAD_EXTENSIONS = setOf(
             "apk", "apks", "xapk", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
@@ -1007,9 +1474,26 @@ class BrowserDownloadManager(
             "raw.githubusercontent.com",
             "drive.usercontent.google.com",
             "googleusercontent.com",
-            "mediafire.com",
+            "firebasestorage.googleapis.com",
+            "storage.googleapis.com",
+            "dl.dropboxusercontent.com",
+            "dropboxusercontent.com",
+            "dl.dropbox.com",
+            "1drv.ms",
+            "onedrive.live.com",
+            "amazonaws.com",
+            "digitaloceanspaces.com",
             "cloudflarestorage.com",
-            "r2.dev"
+            "r2.dev",
+            "mediafire.com",
+            "cdn-telegram.org",
+            "pixeldrain.com",
+            "gofile.io",
+            "archive.org",
+            "sourceforge.net",
+            "blob.core.windows.net",
+            "akamaized.net",
+            "b-cdn.net"
         )
 
         /**
@@ -1023,10 +1507,10 @@ class BrowserDownloadManager(
             if (!lower.startsWith("http://") && !lower.startsWith("https://")) return false
 
             return try {
-                val uri = Uri.parse(rawUrl)
-                val host = uri.host?.lowercase().orEmpty()
-                val path = uri.path?.lowercase().orEmpty()
-                val query = uri.query?.lowercase().orEmpty()
+                val parsedUri = java.net.URI(toSafeHttpUrlStatic(rawUrl))
+                val host = parsedUri.host?.lowercase().orEmpty()
+                val path = parsedUri.path?.lowercase().orEmpty()
+                val query = parsedUri.rawQuery?.lowercase().orEmpty()
 
                 // 1) مؤشرات تنزيل صريحة في معاملات الرابط (AWS S3 / GitHub / Google Drive / Dropbox / R2)
                 if (query.contains("response-content-disposition=") ||
@@ -1056,6 +1540,110 @@ class BrowserDownloadManager(
             } catch (_: Exception) {
                 false
             }
+        }
+
+        data class ProbeResult(
+            val isFileDownload: Boolean,
+            val finalUrl: String,
+            val contentDisposition: String?,
+            val mimeType: String?,
+            val contentLength: Long
+        )
+
+        /**
+         * فحص سريع للترويسات (HEAD ثم GET جزئي) لمعرفة ما إذا كان رابط تحويل (Redirect)
+         * من داخل صفحة مسموحة يشير إلى تنزيل ملف ثنائي/مرفق بدل صفحة ويب HTML.
+         */
+        fun probeUrlForDownload(
+            rawUrl: String,
+            userAgent: String?,
+            sourceUrl: String?
+        ): ProbeResult {
+            var currentUrl = rawUrl.trim()
+            var redirects = 0
+            while (redirects < 8) {
+                var conn: HttpURLConnection? = null
+                try {
+                    val u = URL(currentUrl)
+                    conn = (u.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "HEAD"
+                        connectTimeout = 4_000
+                        readTimeout = 4_000
+                        instanceFollowRedirects = false
+                        useCaches = false
+                        setRequestProperty("User-Agent", userAgent?.takeIf { it.isNotBlank() } ?: WEB_UA)
+                        val cookie = try { CookieManager.getInstance().getCookie(currentUrl) } catch (_: Exception) { null }
+                        if (!cookie.isNullOrBlank()) setRequestProperty("Cookie", cookie)
+                        if (!sourceUrl.isNullOrBlank() && sourceUrl.startsWith("http", true)) {
+                            setRequestProperty("Referer", sourceUrl)
+                        }
+                    }
+                    conn.connect()
+                    var code = conn.responseCode
+                    if (code in 301..303 || code == 307 || code == 308) {
+                        val loc = conn.getHeaderField("Location")
+                        conn.disconnect()
+                        if (loc.isNullOrBlank()) break
+                        currentUrl = URL(u, loc).toString()
+                        redirects++
+                        continue
+                    }
+                    // إذا رفض الخادم HEAD (405 / 501 / 403) نجرب طلب GET بالبايت الأول فقط
+                    if (code == 405 || code == 501 || code == 403 || code == 400) {
+                        conn.disconnect()
+                        conn = (u.openConnection() as HttpURLConnection).apply {
+                            requestMethod = "GET"
+                            connectTimeout = 4_000
+                            readTimeout = 4_000
+                            instanceFollowRedirects = false
+                            useCaches = false
+                            setRequestProperty("Range", "bytes=0-0")
+                            setRequestProperty("User-Agent", userAgent?.takeIf { it.isNotBlank() } ?: WEB_UA)
+                            val cookie = try { CookieManager.getInstance().getCookie(currentUrl) } catch (_: Exception) { null }
+                            if (!cookie.isNullOrBlank()) setRequestProperty("Cookie", cookie)
+                            if (!sourceUrl.isNullOrBlank() && sourceUrl.startsWith("http", true)) {
+                                setRequestProperty("Referer", sourceUrl)
+                            }
+                        }
+                        conn.connect()
+                        code = conn.responseCode
+                        if (code in 301..303 || code == 307 || code == 308) {
+                            val loc = conn.getHeaderField("Location")
+                            conn.disconnect()
+                            if (loc.isNullOrBlank()) break
+                            currentUrl = URL(u, loc).toString()
+                            redirects++
+                            continue
+                        }
+                    }
+
+                    val disp = conn.getHeaderField("Content-Disposition")
+                    val mime = conn.contentType?.substringBefore(';')?.trim()?.lowercase()
+                    val len = conn.contentLengthLong
+                    conn.disconnect()
+
+                    val isAttachment = disp?.contains("attachment", ignoreCase = true) == true
+                    val isNonWebBinaryMime = !mime.isNullOrBlank() &&
+                        !mime.startsWith("text/html") &&
+                        !mime.startsWith("application/xhtml") &&
+                        !mime.startsWith("text/plain") &&
+                        (mime.startsWith("application/") ||
+                            mime.startsWith("video/") ||
+                            mime.startsWith("audio/") ||
+                            mime.startsWith("image/"))
+
+                    val isDownload = (code in 200..299 || code == 206) &&
+                        (isAttachment || isNonWebBinaryMime || isLikelyFileDownloadUrl(currentUrl))
+                    return ProbeResult(isDownload, currentUrl, disp, mime, len)
+                } catch (_: Exception) {
+                    try {
+                        conn?.disconnect()
+                    } catch (_: Exception) {
+                    }
+                    break
+                }
+            }
+            return ProbeResult(false, currentUrl, null, null, -1L)
         }
 
         fun parseContentDisposition(disposition: String?): String? {

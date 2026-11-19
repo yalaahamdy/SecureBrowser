@@ -10,6 +10,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.securebrowser.app.R
 import com.securebrowser.app.data.backup.BackupCodec
@@ -114,7 +115,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
         bindCard(
             binding.cardBlockSearchEngine, R.drawable.ic_search, getString(R.string.card_block_search_engine)
         ) {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.card_block_search_engine)
                 .setItems(
                     arrayOf(
@@ -320,7 +321,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
         val labels = options.map { getString(R.string.picker_minutes, it) }.toTypedArray()
         val current = ServiceLocator.settingsRepository.lockTimeoutMinutes
         val checked = options.indexOfFirst { it >= current }.coerceAtLeast(0)
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.card_lock_timeout))
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 lifecycleScope.launch {
@@ -334,7 +335,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
     }
 
     private fun showChoiceDialog(title: String, options: Array<String>, onPick: (Int) -> Unit) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setItems(options) { _, which -> onPick(which); refreshValues() }
             .setNegativeButton(R.string.cancel, null)
@@ -351,7 +352,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
             getString(R.string.value_on),
             getString(R.string.value_off)
         )
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.card_biometric))
             .setSingleChoiceItems(options, if (current) 0 else 1) { dialog, which ->
                 dialog.dismiss()
@@ -360,7 +361,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
                         toast(getString(R.string.biometric_not_available))
                         return@setSingleChoiceItems
                     }
-                    AlertDialog.Builder(this)
+                    MaterialAlertDialogBuilder(this)
                         .setTitle(getString(R.string.card_biometric))
                         .setMessage(getString(R.string.biometric_warning))
                         .setPositiveButton(R.string.ok) { _, _ ->
@@ -511,7 +512,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
     }
 
     private fun confirmClear(message: String, onConfirm: () -> Unit) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setMessage(message)
             .setPositiveButton(R.string.ok) { _, _ -> onConfirm() }
             .setNegativeButton(R.string.cancel, null)
@@ -582,7 +583,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
                 append(getString(R.string.backup_count_settings, counts.settings))
             }
             dialogBinding.backupIncludePin.isVisible = counts.hasPin
-            AlertDialog.Builder(this@ParentalSettingsActivity)
+            MaterialAlertDialogBuilder(this@ParentalSettingsActivity)
                 .setTitle(R.string.backup_export_title)
                 .setView(dialogBinding.root)
                 .setPositiveButton(R.string.backup_export_action) { _, _ ->
@@ -653,7 +654,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
             dialogBinding.rbReplace.setOnCheckedChangeListener { _, checked ->
                 dialogBinding.backupReplaceWarning.isVisible = checked
             }
-            AlertDialog.Builder(this@ParentalSettingsActivity)
+            MaterialAlertDialogBuilder(this@ParentalSettingsActivity)
                 .setTitle(R.string.backup_import_title)
                 .setView(dialogBinding.root)
                 .setPositiveButton(R.string.backup_import_action) { _, _ ->

@@ -52,7 +52,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnBlockBack"
-            style="?attr/materialButtonOutlinedStyle"
+            style="@style/Widget.SecureBrowser.Button.ErrorOutlined"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="12dp"
@@ -60,6 +60,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnBlockPrevious"
+            style="@style/Widget.SecureBrowser.Button.Danger"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/block_btn_previous" />

@@ -53,6 +53,8 @@ class DownloadRepository(private val dao: DownloadRecordDao) {
 
     suspend fun delete(id: Long) = dao.deleteById(id)
 
+    suspend fun clearFinished() = dao.clearFinished()
+
     suspend fun clearAll() = dao.clearAll()
 
     companion object {

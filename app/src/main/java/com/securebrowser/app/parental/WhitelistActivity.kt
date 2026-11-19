@@ -4,12 +4,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.securebrowser.app.R
 import com.securebrowser.app.browser.ruleTypeLabel
 import com.securebrowser.app.data.db.entity.WhiteListRuleEntity
@@ -77,7 +77,7 @@ class WhitelistActivity : AppCompatActivity() {
             getString(R.string.add_whitelist_all_paths),
             getString(R.string.add_whitelist_subdomains)
         )
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.rule_edit_title, rule.host))
             .setItems(options) { _, which ->
                 val (type, subdomains) = when (which) {
@@ -97,7 +97,7 @@ class WhitelistActivity : AppCompatActivity() {
     }
 
     private fun confirmDelete(rule: WhiteListRuleEntity) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(rule.host)
             .setMessage(getString(R.string.delete))
             .setPositiveButton(R.string.delete) { _, _ ->

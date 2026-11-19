@@ -1,22 +1,214 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.SecureBrowser" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- الألوان الأساسية للنظام (Material 3 Light / Night) -->
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorOnPrimary">@color/colorOnPrimary</item>
         <item name="colorPrimaryContainer">@color/colorPrimaryContainer</item>
         <item name="colorOnPrimaryContainer">@color/colorOnPrimaryContainer</item>
         <item name="colorSecondary">@color/colorSecondary</item>
         <item name="colorOnSecondary">@color/colorOnSecondary</item>
+        <item name="colorSecondaryContainer">@color/colorSecondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/colorOnSecondaryContainer</item>
         <item name="colorError">@color/colorError</item>
+        <item name="colorOnError">@color/colorOnError</item>
         <item name="colorErrorContainer">@color/colorErrorContainer</item>
+        <item name="colorOnErrorContainer">@color/onErrorContainer</item>
+
+        <!-- الأسطح والخلفيات والحدود -->
         <item name="android:colorBackground">@color/background</item>
         <item name="colorOnBackground">@color/onBackground</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/onSurface</item>
+        <item name="colorSurfaceVariant">@color/surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/onSurfaceVariant</item>
+        <item name="colorOutline">@color/outline</item>
+        <item name="colorOutlineVariant">@color/outlineVariant</item>
+
+        <!-- أشرطة النظام -->
         <item name="android:statusBarColor">@color/colorPrimary</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/background</item>
+
+        <!-- الأنماط الافتراضية للمكونات والأزرار والحوارات -->
+        <item name="materialButtonStyle">@style/Widget.SecureBrowser.Button.Primary</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.SecureBrowser.Button.Outlined</item>
+        <item name="textInputStyle">@style/Widget.SecureBrowser.TextInputLayout</item>
+        <item name="chipStyle">@style/Widget.SecureBrowser.Chip.Filter</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.SecureBrowser.MaterialAlertDialog</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.SecureBrowser.BottomSheetDialog</item>
     </style>
 
     <style name="Theme.SecureBrowser.Splash">
         <item name="android:windowBackground">@color/colorPrimary</item>
+    </style>
+
+    <!-- ————————————————— أنماط الأزرار الموحدة ————————————————— -->
+
+    <style name="Widget.SecureBrowser.Button.Primary" parent="Widget.Material3.Button">
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="backgroundTint">@color/colorPrimary</item>
+        <item name="android:textColor">@color/colorOnPrimary</item>
+        <item name="iconTint">@color/colorOnPrimary</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="backgroundTint">?attr/colorPrimaryContainer</item>
+        <item name="android:textColor">?attr/colorOnPrimaryContainer</item>
+        <item name="iconTint">?attr/colorOnPrimaryContainer</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="strokeColor">?attr/colorOutline</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="iconTint">?attr/colorPrimary</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.Button.Danger" parent="Widget.Material3.Button">
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="backgroundTint">?attr/colorError</item>
+        <item name="android:textColor">?attr/colorOnError</item>
+        <item name="iconTint">?attr/colorOnError</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.Button.ErrorOutlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">14dp</item>
+        <item name="android:minHeight">46dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="strokeColor">?attr/colorOnErrorContainer</item>
+        <item name="strokeWidth">1.2dp</item>
+        <item name="android:textColor">?attr/colorOnErrorContainer</item>
+        <item name="iconTint">?attr/colorOnErrorContainer</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.Button.Compact" parent="Widget.Material3.Button.TonalButton">
+        <item name="cornerRadius">10dp</item>
+        <item name="android:minHeight">34dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="iconSize">16dp</item>
+        <item name="iconPadding">6dp</item>
+        <item name="backgroundTint">?attr/colorPrimaryContainer</item>
+        <item name="android:textColor">?attr/colorOnPrimaryContainer</item>
+        <item name="iconTint">?attr/colorOnPrimaryContainer</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.Button.CompactDanger" parent="Widget.SecureBrowser.Button.Compact">
+        <item name="backgroundTint">?attr/colorErrorContainer</item>
+        <item name="android:textColor">?attr/colorOnErrorContainer</item>
+        <item name="iconTint">?attr/colorOnErrorContainer</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.IconButton.Toolbar" parent="">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:scaleType">centerInside</item>
+        <item name="android:padding">10dp</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.IconButton.Card" parent="">
+        <item name="android:layout_width">36dp</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:scaleType">centerInside</item>
+        <item name="android:padding">6dp</item>
+    </style>
+
+    <!-- ————————————————— الرقاقات والحقول والحوارات ————————————————— -->
+
+    <style name="Widget.SecureBrowser.Chip.Filter" parent="Widget.Material3.Chip.Filter">
+        <item name="chipCornerRadius">12dp</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipStrokeColor">?attr/colorOutlineVariant</item>
+        <item name="chipMinHeight">36dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="checkedIconVisible">true</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">14dp</item>
+        <item name="boxCornerRadiusTopEnd">14dp</item>
+        <item name="boxCornerRadiusBottomStart">14dp</item>
+        <item name="boxCornerRadiusBottomEnd">14dp</item>
+        <item name="boxStrokeColor">?attr/colorPrimary</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.TextInputLayout.Dense" parent="Widget.Material3.TextInputLayout.OutlinedBox.Dense">
+        <item name="boxCornerRadiusTopStart">14dp</item>
+        <item name="boxCornerRadiusTopEnd">14dp</item>
+        <item name="boxCornerRadiusBottomStart">14dp</item>
+        <item name="boxCornerRadiusBottomEnd">14dp</item>
+        <item name="boxStrokeColor">?attr/colorPrimary</item>
+    </style>
+
+    <style name="ThemeOverlay.SecureBrowser.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.SecureBrowser.Dialog</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.SecureBrowser.Button.Text</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.SecureBrowser.Button.Text</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.SecureBrowser.Button.Text</item>
+    </style>
+
+    <style name="ShapeAppearance.SecureBrowser.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">24dp</item>
+    </style>
+
+    <style name="ThemeOverlay.SecureBrowser.BottomSheetDialog" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.SecureBrowser.BottomSheet.Modal</item>
+    </style>
+
+    <style name="Widget.SecureBrowser.BottomSheet.Modal" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.SecureBrowser.BottomSheet</item>
+        <item name="backgroundTint">?attr/colorSurface</item>
+    </style>
+
+    <style name="ShapeAppearance.SecureBrowser.BottomSheet" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">24dp</item>
+        <item name="cornerSizeTopRight">24dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
     </style>
 
     <!-- قص زوايا معاينة التبويب (v1.5.0) — أعلى فقط مطابقة لزوايا البطاقة -->

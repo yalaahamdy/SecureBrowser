@@ -403,7 +403,7 @@ object AppUpdateManager {
             !activity.packageManager.canRequestPackageInstalls()
         ) {
             pendingInstallApk = apkFile
-            AlertDialog.Builder(activity)
+            MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.update_install_permission_title)
                 .setMessage(R.string.update_install_permission_msg)
                 .setPositiveButton(R.string.update_grant_permission) { _, _ ->

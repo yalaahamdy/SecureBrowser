@@ -12,6 +12,7 @@ import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.securebrowser.app.R
 
 /**
@@ -111,7 +112,7 @@ class SecureWebChromeClient(
     override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
         val context = view?.context
         if (context != null) {
-            AlertDialog.Builder(context)
+            MaterialAlertDialogBuilder(context)
                 .setMessage(message ?: "")
                 .setPositiveButton(R.string.ok) { _, _ -> result?.confirm() }
                 .setOnCancelListener { result?.cancel() }
@@ -125,7 +126,7 @@ class SecureWebChromeClient(
     override fun onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
         val context = view?.context
         if (context != null) {
-            AlertDialog.Builder(context)
+            MaterialAlertDialogBuilder(context)
                 .setMessage(message ?: "")
                 .setPositiveButton(R.string.ok) { _, _ -> result?.confirm() }
                 .setNegativeButton(R.string.cancel) { _, _ -> result?.cancel() }
@@ -146,12 +147,17 @@ class SecureWebChromeClient(
     ): Boolean {
         val context = view?.context
         if (context != null) {
+            val pad = (20 * context.resources.displayMetrics.density).toInt()
+            val wrapper = android.widget.FrameLayout(context).apply {
+                setPadding(pad, pad / 2, pad, 0)
+            }
             val input = android.widget.EditText(context).apply {
                 setText(defaultValue ?: "")
             }
-            AlertDialog.Builder(context)
+            wrapper.addView(input)
+            MaterialAlertDialogBuilder(context)
                 .setMessage(message ?: "")
-                .setView(input)
+                .setView(wrapper)
                 .setPositiveButton(R.string.ok) { _, _ -> result?.confirm(input.text.toString()) }
                 .setNegativeButton(R.string.cancel) { _, _ -> result?.cancel() }
                 .setOnCancelListener { result?.cancel() }

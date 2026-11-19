@@ -58,26 +58,30 @@
 
                 <ImageView
                     android:id="@+id/btnSiteInfo"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
                     android:layout_gravity="start|center_vertical"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
                     android:contentDescription="@string/site_info_title"
                     android:focusable="true"
+                    android:padding="4dp"
                     android:src="@drawable/ic_shield_check"
                     android:tint="@color/browserBarForeground" />
 
                 <!-- v1.9.0: قارئ QR مدمج — روابط ونصوص بحث مباشرة من الكاميرا -->
                 <ImageView
                     android:id="@+id/btnQrScan"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
                     android:layout_gravity="end|center_vertical"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
                     android:contentDescription="@string/cd_qr_scan"
                     android:focusable="true"
+                    android:padding="4dp"
                     android:src="@drawable/ic_qr"
                     android:tint="@color/browserBarForeground" />
             </FrameLayout>
@@ -163,29 +167,32 @@
 
             <ImageButton
                 android:id="@+id/btnFindPrev"
+                style="@style/Widget.SecureBrowser.IconButton.Card"
                 android:layout_width="38dp"
                 android:layout_height="38dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/find_prev"
                 android:rotation="90"
-                android:src="@drawable/ic_forward" />
+                android:src="@drawable/ic_forward"
+                android:tint="?attr/colorOnSurfaceVariant" />
 
             <ImageButton
                 android:id="@+id/btnFindNext"
+                style="@style/Widget.SecureBrowser.IconButton.Card"
                 android:layout_width="38dp"
                 android:layout_height="38dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/find_next"
                 android:rotation="-90"
-                android:src="@drawable/ic_forward" />
+                android:src="@drawable/ic_forward"
+                android:tint="?attr/colorOnSurfaceVariant" />
 
             <ImageButton
                 android:id="@+id/btnFindClose"
+                style="@style/Widget.SecureBrowser.IconButton.Card"
                 android:layout_width="38dp"
                 android:layout_height="38dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/close"
-                android:src="@drawable/ic_close" />
+                android:src="@drawable/ic_close"
+                android:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
 
         <!-- ——— مؤشر الوصول المؤقت مع العد التنازلي (§8) ——— -->
@@ -228,7 +235,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnTempEnd"
-                style="@style/Widget.Material3.Button.TextButton"
+                style="@style/Widget.SecureBrowser.Button.Text"
                 android:layout_width="wrap_content"
                 android:layout_height="32dp"
                 android:layout_marginStart="6dp"

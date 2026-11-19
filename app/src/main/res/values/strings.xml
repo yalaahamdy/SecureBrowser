@@ -451,4 +451,42 @@
     <string name="update_install_permission_title">Allow installing updates</string>
     <string name="update_install_permission_msg">Please allow Secure Browser to install update packages from this source so the update can complete automatically.</string>
     <string name="update_grant_permission">Allow in Settings</string>
+
+    <!-- v1.13.0: Professional Download Manager Re-Architecture -->
+    <string name="downloads_empty_title">No downloads yet</string>
+    <string name="downloads_empty_subtitle">Downloaded files are automatically saved to your phone\'s Download folder and appear here.</string>
+    <string name="downloads_search_hint">Search downloaded files…</string>
+    <string name="downloads_summary_stats">%1$d files • Total: %2$s</string>
+    <string name="downloads_summary_active">Active: %1$d</string>
+    <string name="downloads_summary_idle">All completed</string>
+    <string name="downloads_save_path_badge">Saved directly to phone\'s Download folder (/storage/emulated/0/Download)</string>
+    <string name="downloads_filter_all">All</string>
+    <string name="downloads_filter_active">Active</string>
+    <string name="downloads_filter_docs">Documents</string>
+    <string name="downloads_filter_images">Images</string>
+    <string name="downloads_filter_videos">Videos</string>
+    <string name="downloads_filter_audio">Audio</string>
+    <string name="downloads_filter_apk">Apps (APK)</string>
+    <string name="downloads_filter_archives">Archives</string>
+    <string name="downloads_add_url_title">New Download from Link</string>
+    <string name="downloads_add_url_hint">https://example.com/file.pdf</string>
+    <string name="downloads_add_filename_hint">Custom file name (optional)</string>
+    <string name="downloads_add_start">Start Download</string>
+    <string name="downloads_rename_title">Rename File</string>
+    <string name="downloads_rename_action">Rename</string>
+    <string name="downloads_rename_success">File renamed successfully</string>
+    <string name="downloads_rename_failed">Could not rename file</string>
+    <string name="downloads_copy_url">Copy download link</string>
+    <string name="downloads_cancel_active">Cancel download</string>
+    <string name="downloads_clear_menu">Clear finished records</string>
+    <string name="downloads_clear_confirm">Clear completed and failed records from the list? (Your downloaded files in the phone\'s Download folder will NOT be deleted).</string>
+    <string name="downloads_speed_fmt">%1$s/s</string>
+    <string name="downloads_eta_sec">%1$ds left</string>
+    <string name="downloads_eta_min">%1$dm %2$ds left</string>
+    <string name="downloads_saved_in_public">Saved in Download</string>
+    <string name="downloads_view_action">View</string>
+    <string name="notif_channel_downloads">File Downloads</string>
+    <string name="notif_download_in_progress">Downloading (%1$d%%)</string>
+    <string name="notif_download_completed">Download complete — Tap to view</string>
+    <string name="notif_download_failed">Download failed</string>
 </resources>

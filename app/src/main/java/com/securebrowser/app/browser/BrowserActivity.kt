@@ -94,6 +94,10 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             if (!text.isNullOrBlank()) onQrScanned(text)
         }
 
+    /** v1.13.0 — إذن إشعارات التنزيلات (Android 13+). */
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
+
     private var lastErrorUrl: String? = null
     private var lastErrorDescription: String? = null
 
@@ -168,6 +172,37 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
         // v1.12.0 — فحص تلقائي لوجود تحديث جديد للتطبيق على GitHub Releases
         com.securebrowser.app.update.AppUpdateManager.checkForUpdates(this, manual = false)
+
+        // v1.13.0 — إشعار Snackbar حي داخل المتصفح فور بدء أي تنزيل + طلب إذن الإشعارات عند اللزوم
+        ServiceLocator.downloadManager.onDownloadStartedListener = { _, fileName ->
+            runOnUiThread {
+                requestNotificationPermissionIfNeeded()
+                if (!isFinishing && !isDestroyed) {
+                    com.google.android.material.snackbar.Snackbar.make(
+                        binding.root,
+                        "${getString(R.string.toast_download_started)}: $fileName",
+                        com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                    ).setAction(R.string.downloads_view_action) {
+                        openDownloads()
+                    }.show()
+                }
+            }
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (!granted) {
+                try {
+                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                } catch (_: Exception) {
+                }
+            }
+        }
     }
 
     override fun onResume() {
@@ -648,15 +683,14 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             is NavigationDecision.Block -> {
                 if (view == activeWebView()) runOnUiThread { binding.progressBar.isVisible = false }
 
-                // v1.12.0 — إذا كان الرابط أو إعادة التوجيه من صفحة مسموحة يتجه إلى ملف قابل للتنزيل
-                // أو خادم ملفات (CDN مثل objects.githubusercontent.com أو googleusercontent أو mediafire)،
-                // نمرره فورًا لمدير التنزيلات بدلًا من حظره كصفحة ويب.
+                // v1.13.0 — إذا كان الرابط أو إعادة التوجيه من صفحة مسموحة يتجه إلى ملف قابل للتنزيل
+                // أو خادم ملفات، أو رابط CDN/API يخفي الملف خلف الترويسات، نفحصه وننزّله بدلًا من حظره.
                 val targetRaw = decision.rawUrl ?: rawUrl
+                val source = view.url?.takeIf { it.isNotBlank() && it != "about:blank" }
+                    ?: currentSourceUrl()
                 if (decision.reason == BlockReason.NOT_WHITELISTED &&
                     BrowserDownloadManager.isLikelyFileDownloadUrl(targetRaw)
                 ) {
-                    val source = view.url?.takeIf { it.isNotBlank() && it != "about:blank" }
-                        ?: currentSourceUrl()
                     ServiceLocator.downloadManager.handleDownload(
                         url = targetRaw,
                         userAgent = view.settings.userAgentString,
@@ -670,19 +704,62 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                     return true
                 }
 
-                recordBlockedNavigation(targetRaw, decision.reason, type)
-                val suggestion = ExternalAppPolicy.suggestForWebUrl(targetRaw)
-                if (decision.reason == BlockReason.NOT_WHITELISTED && suggestion != null &&
-                    view == activeWebView()
-                ) {
-                    externalHandler.handleBlockedWebUrl(targetRaw) {
-                        showErrorBlockScreen(targetRaw, decision.detail)
+                // فحص غير متزامن لروابط النقرات والتحويلات (LINK/REDIRECT) داخل صفحة مفتوحة مسموحة:
+                // لو أرجع الخادم Content-Disposition: attachment أو نوع ملف ثنائي -> ينزّل فورًا،
+                // وإلا -> تظهر شاشة الحظر الطبيعية تمامًا.
+                val isWebPageClick = (type == NavigationType.LINK || type == NavigationType.REDIRECT) &&
+                    !startBinding.root.isVisible &&
+                    !blockBinding.root.isVisible &&
+                    (targetRaw.startsWith("http://", true) || targetRaw.startsWith("https://", true))
+
+                if (decision.reason == BlockReason.NOT_WHITELISTED && isWebPageClick && view == activeWebView()) {
+                    val ua = view.settings.userAgentString
+                    lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val probe = BrowserDownloadManager.probeUrlForDownload(targetRaw, ua, source)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            if (isFinishing || isDestroyed) return@withContext
+                            if (probe.isFileDownload) {
+                                ServiceLocator.downloadManager.handleDownload(
+                                    url = probe.finalUrl,
+                                    userAgent = ua,
+                                    contentDisposition = probe.contentDisposition,
+                                    mimeType = probe.mimeType,
+                                    contentLength = probe.contentLength,
+                                    sourceUrl = source,
+                                    sourceAllowed = true
+                                )
+                                onDownloadStartedInWebView(view)
+                            } else {
+                                showBlockedForNavigation(targetRaw, decision.reason, decision.detail, type, view)
+                            }
+                        }
                     }
-                } else if (view == activeWebView()) {
-                    showErrorBlockScreen(targetRaw, decision.detail)
+                    return true
                 }
+
+                showBlockedForNavigation(targetRaw, decision.reason, decision.detail, type, view)
                 true
             }
+        }
+    }
+
+    private fun showBlockedForNavigation(
+        targetRaw: String,
+        reason: BlockReason,
+        detail: String?,
+        type: NavigationType,
+        view: WebView
+    ) {
+        recordBlockedNavigation(targetRaw, reason, type)
+        val suggestion = ExternalAppPolicy.suggestForWebUrl(targetRaw)
+        if (reason == BlockReason.NOT_WHITELISTED && suggestion != null &&
+            view == activeWebView()
+        ) {
+            externalHandler.handleBlockedWebUrl(targetRaw) {
+                showErrorBlockScreen(targetRaw, detail)
+            }
+        } else if (view == activeWebView()) {
+            showErrorBlockScreen(targetRaw, detail)
         }
     }
 
@@ -764,11 +841,11 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
             is NavigationDecision.Block -> {
                 val targetRaw = decision.rawUrl ?: rawUrl
+                val source = currentSourceUrl()
                 // v1.12.0 — روابط التنزيل التي تفتح في نافذة جديدة (target="_blank") وتوجه إلى CDN ملفات
                 if (decision.reason == BlockReason.NOT_WHITELISTED &&
                     BrowserDownloadManager.isLikelyFileDownloadUrl(targetRaw)
                 ) {
-                    val source = currentSourceUrl()
                     ServiceLocator.downloadManager.handleDownload(
                         url = targetRaw,
                         userAgent = webView.settings.userAgentString,
@@ -779,6 +856,32 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                         sourceAllowed = true
                     )
                     return true // تُدمَّر النافذة المنبثقة المؤقتة فورًا بعد بدء التنزيل
+                }
+                if (decision.reason == BlockReason.NOT_WHITELISTED &&
+                    (targetRaw.startsWith("http://", true) || targetRaw.startsWith("https://", true))
+                ) {
+                    val ua = webView.settings.userAgentString
+                    lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val probe = BrowserDownloadManager.probeUrlForDownload(targetRaw, ua, source)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            if (isFinishing || isDestroyed) return@withContext
+                            if (probe.isFileDownload) {
+                                ServiceLocator.downloadManager.handleDownload(
+                                    url = probe.finalUrl,
+                                    userAgent = ua,
+                                    contentDisposition = probe.contentDisposition,
+                                    mimeType = probe.mimeType,
+                                    contentLength = probe.contentLength,
+                                    sourceUrl = source,
+                                    sourceAllowed = true
+                                )
+                            } else {
+                                recordBlockedNavigation(targetRaw, decision.reason, type)
+                                showErrorBlockScreen(targetRaw, decision.detail)
+                            }
+                        }
+                    }
+                    return true
                 }
                 recordBlockedNavigation(targetRaw, decision.reason, type)
                 showErrorBlockScreen(targetRaw, decision.detail)
@@ -1019,7 +1122,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
      * تأكيد صريح ثم حذف القاعدة وتحديث المحرك وإعادة رسم الصفحة.
      */
     private fun confirmRemoveSite(rule: com.securebrowser.app.security.whitelist.WhiteListRule) {
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.remove_site_title))
             .setMessage(getString(R.string.remove_site_message, rule.host))
             .setPositiveButton(R.string.delete) { _, _ ->
@@ -1411,6 +1514,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     }
 
     override fun onDestroy() {
+        ServiceLocator.downloadManager.onDownloadStartedListener = null
         // تفكيك جميع WebViews لمنع التسريب
         tabsManager.destroyAll()
         super.onDestroy()

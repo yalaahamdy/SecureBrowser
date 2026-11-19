@@ -451,4 +451,42 @@
     <string name="update_install_permission_title">السماح بتثبيت التحديث</string>
     <string name="update_install_permission_msg">يرجى منح صلاحية تثبيت التطبيقات للمتصفح الآمن حتى يتم تثبيت التحديث الجديد تلقائيًا.</string>
     <string name="update_grant_permission">منح الصلاحية</string>
+
+    <!-- v1.13.0: إعادة هيكلة مدير التنزيلات الاحترافي -->
+    <string name="downloads_empty_title">لا توجد تنزيلات حتى الآن</string>
+    <string name="downloads_empty_subtitle">جميع الملفات التي تقوم بتحميلها تُحفظ تلقائيًا في مجلد Download الرئيسي بالهاتف وتظهر هنا لإدارتها.</string>
+    <string name="downloads_search_hint">ابحث في الملفات المنزّلة…</string>
+    <string name="downloads_summary_stats">%1$d ملف • الحجم الإجمالي: %2$s</string>
+    <string name="downloads_summary_active">نشط الآن: %1$d</string>
+    <string name="downloads_summary_idle">لا توجد تنزيلات جارية</string>
+    <string name="downloads_save_path_badge">مسار الحفظ: مجلد التنزيلات العام بالهاتف (Download)</string>
+    <string name="downloads_filter_all">الكل</string>
+    <string name="downloads_filter_active">الجارية</string>
+    <string name="downloads_filter_docs">مستندات و PDF</string>
+    <string name="downloads_filter_images">صور</string>
+    <string name="downloads_filter_videos">فيديو</string>
+    <string name="downloads_filter_audio">صوتيات</string>
+    <string name="downloads_filter_apk">تطبيقات APK</string>
+    <string name="downloads_filter_archives">ملفات مضغوطة</string>
+    <string name="downloads_add_url_title">تنزيل ملف من رابط مباشر</string>
+    <string name="downloads_add_url_hint">https://example.com/file.pdf</string>
+    <string name="downloads_add_filename_hint">اسم الملف (اختياري — يُكتشف تلقائيًا)</string>
+    <string name="downloads_add_start">بدء التنزيل</string>
+    <string name="downloads_rename_title">إعادة تسمية الملف</string>
+    <string name="downloads_rename_action">إعادة تسمية الملف</string>
+    <string name="downloads_rename_success">تمت إعادة تسمية الملف بنجاح</string>
+    <string name="downloads_rename_failed">تعذّرت إعادة تسمية الملف</string>
+    <string name="downloads_copy_url">نسخ رابط التنزيل</string>
+    <string name="downloads_cancel_active">إلغاء التنزيل وحذفه</string>
+    <string name="downloads_clear_menu">مسح سجل المكتملة</string>
+    <string name="downloads_clear_confirm">هل تريد مسح سجل التنزيلات المكتملة والفاشلة من القائمة؟ (ستبقى ملفاتك المحفوظة داخل مجلد Download في الهاتف آمنة ولن تُحذف).</string>
+    <string name="downloads_speed_fmt">%1$s/ث</string>
+    <string name="downloads_eta_sec">متبقي %1$d ث</string>
+    <string name="downloads_eta_min">متبقي %1$d د و %2$d ث</string>
+    <string name="downloads_saved_in_public">محفوظ في Download</string>
+    <string name="downloads_view_action">عرض التنزيلات</string>
+    <string name="notif_channel_downloads">تنزيلات الملفات</string>
+    <string name="notif_download_in_progress">جارٍ التنزيل (%1$d%%)</string>
+    <string name="notif_download_completed">اكتمل التنزيل — اضغط للعرض أو الفتح</string>
+    <string name="notif_download_failed">تعذّر إكمال التنزيل</string>
 </resources>

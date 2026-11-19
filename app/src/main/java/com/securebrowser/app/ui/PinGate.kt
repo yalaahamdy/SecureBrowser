@@ -53,11 +53,14 @@ object PinGate {
         // زر البصمة — يظهر فقط عند تفعيل الإعداد + توفر الجهاز/البصمة
         val biometricEnabled = ServiceLocator.settingsRepository.biometricUnlock &&
             BiometricGate.isAvailable(activity)
-        val biometricButton = MaterialButton(activity).apply {
+        val biometricButton = MaterialButton(
+            android.view.ContextThemeWrapper(activity, R.style.Widget_SecureBrowser_Button_Tonal)
+        ).apply {
             if (biometricEnabled) {
                 text = activity.getString(R.string.pin_biometric_button)
                 textSize = 14f
-                cornerRadius = PinDialogStyle.dp(activity, 16)
+                isAllCaps = false
+                cornerRadius = PinDialogStyle.dp(activity, 14)
                 insetTop = PinDialogStyle.dp(activity, 4)
                 insetBottom = PinDialogStyle.dp(activity, 4)
                 icon = androidx.core.content.ContextCompat.getDrawable(activity, R.drawable.ic_fingerprint)
