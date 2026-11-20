@@ -16,6 +16,7 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.widget.EditText
 import android.widget.Toast
@@ -134,6 +135,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         startBinding.root.isVisible = false
         // v1.7.0 — شبكة بطاقات المواقع المسموحة (3 أعمدة)
         startBinding.sitesGrid.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
+        startBinding.youtubeChannelsGrid.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
 
         blockBinding = ViewBlockScreenBinding.inflate(layoutInflater)
         binding.contentContainer.addView(
@@ -570,26 +572,102 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
     /** تنقل داخلي: كل مسار يمر هنا → refresh → SecurityEngine → تنفيذ القرار. */
     private suspend fun navigateInternal(rawUrl: String, type: NavigationType) {
-        when (val decision = securityEngine.validate(rawUrl, type)) {
+        val initialDecision = securityEngine.validate(rawUrl, type)
+        val decision = if (initialDecision is NavigationDecision.PendingVerification) {
+            resolvePendingYoutubeDecision(initialDecision)
+        } else {
+            initialDecision
+        }
+        when (decision) {
             is NavigationDecision.Allow -> loadAllowed(decision.url)
             is NavigationDecision.OpenExternal ->
                 externalHandler.handle(decision.scheme, decision.target)
+            is NavigationDecision.PendingVerification -> Unit // تم حلها أعلاه
             is NavigationDecision.Block -> {
                 recordBlockedNavigation(decision.rawUrl, decision.reason, type)
-                val suggestion = ExternalAppPolicy.suggestForWebUrl(decision.rawUrl ?: rawUrl)
+                val suppressYt = ServiceLocator.youtubeChannelPolicy.isActive() &&
+                    !ServiceLocator.temporaryAccess.isActive()
+                val suggestion = ExternalAppPolicy.suggestForWebUrl(
+                    decision.rawUrl ?: rawUrl,
+                    suppressYoutubeSuggestion = suppressYt
+                )
                 if (decision.reason == BlockReason.NOT_WHITELISTED && suggestion != null) {
                     // رابط تطبيق معروف يحظرته القائمة → خيار "فتح في التطبيق" (§19)
                     externalHandler.handleBlockedWebUrl(decision.rawUrl ?: rawUrl) {
-                        showErrorBlockScreen(decision.rawUrl ?: rawUrl, decision.detail)
+                        showErrorBlockScreen(decision.rawUrl ?: rawUrl, decision.detail, decision.reason)
                     }
                 } else {
-                    showErrorBlockScreen(decision.rawUrl ?: rawUrl, decision.detail)
+                    showErrorBlockScreen(decision.rawUrl ?: rawUrl, decision.detail, decision.reason)
                 }
             }
         }
     }
 
-    private fun showErrorBlockScreen(rawUrl: String?, hostOrDetail: String?) {
+    private suspend fun resolvePendingYoutubeDecision(
+        pending: NavigationDecision.PendingVerification
+    ): NavigationDecision {
+        runOnUiThread {
+            binding.progressBar.isIndeterminate = true
+            binding.progressBar.isVisible = true
+        }
+        return try {
+            val verifier = ServiceLocator.youtubeChannelVerifier
+            when {
+                pending.videoId != null -> {
+                    when (val outcome = verifier.verifyVideoAllowed(pending.videoId)) {
+                        is com.securebrowser.app.security.youtube.YoutubeChannelVerifier.VideoVerifyOutcome.Allowed ->
+                            NavigationDecision.Allow(pending.url)
+                        is com.securebrowser.app.security.youtube.YoutubeChannelVerifier.VideoVerifyOutcome.Blocked ->
+                            NavigationDecision.Block(
+                                BlockReason.YOUTUBE_CHANNEL_NOT_ALLOWED,
+                                outcome.reason,
+                                pending.url.canonical()
+                            )
+                    }
+                }
+                pending.handle != null -> {
+                    when (val outcome = verifier.verifyHandleOrLegacyChannelAllowed(pending.handle)) {
+                        is com.securebrowser.app.security.youtube.YoutubeChannelVerifier.HandleVerifyOutcome.Allowed ->
+                            NavigationDecision.Allow(pending.url)
+                        is com.securebrowser.app.security.youtube.YoutubeChannelVerifier.HandleVerifyOutcome.Blocked ->
+                            NavigationDecision.Block(
+                                BlockReason.YOUTUBE_CHANNEL_NOT_ALLOWED,
+                                outcome.reason,
+                                pending.url.canonical()
+                            )
+                    }
+                }
+                pending.legacyChannelPath != null -> {
+                    when (val outcome = verifier.verifyHandleOrLegacyChannelAllowed(pending.legacyChannelPath)) {
+                        is com.securebrowser.app.security.youtube.YoutubeChannelVerifier.HandleVerifyOutcome.Allowed ->
+                            NavigationDecision.Allow(pending.url)
+                        is com.securebrowser.app.security.youtube.YoutubeChannelVerifier.HandleVerifyOutcome.Blocked ->
+                            NavigationDecision.Block(
+                                BlockReason.YOUTUBE_CHANNEL_NOT_ALLOWED,
+                                outcome.reason,
+                                pending.url.canonical()
+                            )
+                    }
+                }
+                else -> NavigationDecision.Block(
+                    BlockReason.YOUTUBE_CHANNEL_NOT_ALLOWED,
+                    "youtube_unverifiable",
+                    pending.url.canonical()
+                )
+            }
+        } finally {
+            runOnUiThread {
+                binding.progressBar.isIndeterminate = false
+                binding.progressBar.isVisible = false
+            }
+        }
+    }
+
+    private fun showErrorBlockScreen(
+        rawUrl: String?,
+        hostOrDetail: String?,
+        reason: BlockReason? = null
+    ) {
         // v1.6.0 — لحظة الحظر هي لحظة مزامنة العنوان: كان الشريط يبقى على
         // عنوان الصفحة السابقة لأن WebView لم يبدأ تحميل الرابط المحجوب أصلًا،
         // فكانت «إضافة للقائمة البيضاء» تلتقط العنوان الخاطئ. الآن يُسجّل
@@ -603,6 +681,26 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         ).joinToString("\n")
         blockBinding.blockedHost.isVisible = label.isNotBlank()
         blockBinding.blockedHost.text = label
+
+        val isYoutubeBlock = reason == BlockReason.YOUTUBE_CHANNEL_NOT_ALLOWED
+        blockBinding.blockSubtitle.setText(
+            if (isYoutubeBlock) R.string.block_youtube_message else R.string.block_message
+        )
+        val canAddChannelFromBlock = isYoutubeBlock && !rawUrl.isNullOrBlank() &&
+            when (com.securebrowser.app.security.youtube.YoutubeUrlParser.classifyRaw(rawUrl)) {
+                is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.Video,
+                is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.ChannelById,
+                is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.ChannelByHandle,
+                is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.LegacyChannelPath -> true
+                else -> false
+            }
+        blockBinding.btnBlockAddYoutubeChannel.isVisible = canAddChannelFromBlock
+        if (canAddChannelFromBlock && !rawUrl.isNullOrBlank()) {
+            blockBinding.btnBlockAddYoutubeChannel.setOnClickListener {
+                promptAddBlockedYoutubeChannel(rawUrl)
+            }
+        }
+
         blockBinding.root.isVisible = true
         updateSwipeEnabled()
     }
@@ -626,13 +724,20 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                     return@launch
                 }
                 attachActiveTab()
-                when (val decision = securityEngine.validate(url, NavigationType.LINK)) {
+                val initial = securityEngine.validate(url, NavigationType.LINK)
+                val decision = if (initial is NavigationDecision.PendingVerification) {
+                    resolvePendingYoutubeDecision(initial)
+                } else {
+                    initial
+                }
+                when (decision) {
                     is NavigationDecision.Allow -> loadAllowed(decision.url)
                     is NavigationDecision.OpenExternal ->
                         externalHandler.handle(decision.scheme, decision.target)
+                    is NavigationDecision.PendingVerification -> Unit
                     is NavigationDecision.Block -> {
                         recordBlockedNavigation(decision.rawUrl, decision.reason, NavigationType.LINK)
-                        showErrorBlockScreen(decision.rawUrl ?: url, decision.detail)
+                        showErrorBlockScreen(decision.rawUrl ?: url, decision.detail, decision.reason)
                     }
                 }
                 tab.update { it.copy(isStartPage = false) }
@@ -649,6 +754,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         // بدأ تحميل صفحة حقيقية — رابط المحاولة المحجوب لم يعد ذا صلة
         tabsManager.activeTab?.attemptedUrl = null
         val target = if (url.isWeb) url.canonical() else url.raw
+        activeWebView()?.let { syncTabYoutubeAuthorization(it, target) }
         activeWebView()?.loadUrl(target)
     }
 
@@ -666,10 +772,37 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                 hideErrorOverlay()
                 hideStartPage()
                 tabsManager.activeTab?.attemptedUrl = null
-                // v1.12.0 — ترك Chromium يكمل التنقل والتوجيه الأصلي (return false) بدل
-                // إلغائه وإعادة استدعاء loadUrl() الذي كان يكسر سلاسل التوجيه (Redirects)
-                // وترويسة Referer وطلبات POST والتنزيلات المباشرة ويجمّد التبويبات.
+                syncTabYoutubeAuthorization(view, rawUrl)
+                // v1.12.0 — ترك Chromium يكمل التنقل والتوجيه الأصلي (return false)
                 false
+            }
+
+            is NavigationDecision.PendingVerification -> {
+                val targetUrl = decision.url.canonical()
+                lifecycleScope.launch {
+                    val resolved = resolvePendingYoutubeDecision(decision)
+                    if (isFinishing || isDestroyed) return@launch
+                    when (resolved) {
+                        is NavigationDecision.Allow -> {
+                            hideBlockOverlay()
+                            hideErrorOverlay()
+                            hideStartPage()
+                            syncTabYoutubeAuthorization(view, targetUrl)
+                            view.loadUrl(targetUrl)
+                        }
+                        is NavigationDecision.Block -> {
+                            showBlockedForNavigation(
+                                targetRaw = resolved.rawUrl ?: targetUrl,
+                                reason = resolved.reason,
+                                detail = resolved.detail,
+                                type = type,
+                                view = view
+                            )
+                        }
+                        else -> Unit
+                    }
+                }
+                true
             }
 
             is NavigationDecision.OpenExternal -> {
@@ -682,6 +815,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
             is NavigationDecision.Block -> {
                 if (view == activeWebView()) runOnUiThread { binding.progressBar.isVisible = false }
+                tabsManager.find(idForWebView(view))?.authorizedYoutubeVideoId = null
 
                 // v1.13.0 — إذا كان الرابط أو إعادة التوجيه من صفحة مسموحة يتجه إلى ملف قابل للتنزيل
                 // أو خادم ملفات، أو رابط CDN/API يخفي الملف خلف الترويسات، نفحصه وننزّله بدلًا من حظره.
@@ -757,15 +891,17 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         view: WebView
     ) {
         recordBlockedNavigation(targetRaw, reason, type)
-        val suggestion = ExternalAppPolicy.suggestForWebUrl(targetRaw)
+        val suppressYt = ServiceLocator.youtubeChannelPolicy.isActive() &&
+            !ServiceLocator.temporaryAccess.isActive()
+        val suggestion = ExternalAppPolicy.suggestForWebUrl(targetRaw, suppressYoutubeSuggestion = suppressYt)
         if (reason == BlockReason.NOT_WHITELISTED && suggestion != null &&
             view == activeWebView()
         ) {
             externalHandler.handleBlockedWebUrl(targetRaw) {
-                showErrorBlockScreen(targetRaw, detail)
+                showErrorBlockScreen(targetRaw, detail, reason)
             }
         } else if (view == activeWebView()) {
-            showErrorBlockScreen(targetRaw, detail)
+            showErrorBlockScreen(targetRaw, detail, reason)
         }
     }
 
@@ -781,11 +917,40 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     override fun verifyCommittedPage(view: WebView, url: String?) {
         if (url.isNullOrBlank()) return
         when (val decision = securityEngine.validate(url, NavigationType.JS)) {
+            is NavigationDecision.Allow -> {
+                syncTabYoutubeAuthorization(view, url)
+            }
+            is NavigationDecision.PendingVerification -> {
+                // إجراء احترازي فوري (fail-closed): أوقف أي وسائط إلى أن يكتمل التحقق
+                tabsManager.find(idForWebView(view))?.authorizedYoutubeVideoId = null
+                YoutubeWebViewGuard.killMediaPlayback(view)
+                val targetUrl = decision.url.canonical()
+                lifecycleScope.launch {
+                    val resolved = resolvePendingYoutubeDecision(decision)
+                    if (isFinishing || isDestroyed) return@launch
+                    when (resolved) {
+                        is NavigationDecision.Allow -> {
+                            syncTabYoutubeAuthorization(view, targetUrl)
+                        }
+                        is NavigationDecision.Block -> {
+                            view.stopLoading()
+                            YoutubeWebViewGuard.killMediaPlayback(view)
+                            recordBlockedNavigation(url, resolved.reason, NavigationType.JS)
+                            if (view == activeWebView()) {
+                                showErrorBlockScreen(url, resolved.detail, resolved.reason)
+                            }
+                        }
+                        else -> Unit
+                    }
+                }
+            }
             is NavigationDecision.Block -> {
+                tabsManager.find(idForWebView(view))?.authorizedYoutubeVideoId = null
+                YoutubeWebViewGuard.killMediaPlayback(view)
                 view.stopLoading()
                 recordBlockedNavigation(url, decision.reason, NavigationType.JS)
                 if (view == activeWebView()) {
-                    showErrorBlockScreen(url, decision.detail)
+                    showErrorBlockScreen(url, decision.detail, decision.reason)
                 }
             }
             else -> Unit
@@ -829,6 +994,8 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                 webView.webViewClient = SecureWebViewClient(tab.id, this)
                 webView.webChromeClient = SecureWebChromeClient(tab.id, this)
                 SecureWebViewFactory.attachDownloadListener(webView, this)
+                YoutubeWebViewGuard.attach(webView, { tabSession(tab.id) }, this)
+                syncTabYoutubeAuthorization(webView, decision.url.canonical())
                 tab.update {
                     it.copy(
                         url = if (decision.url.isWeb) decision.url.canonical() else decision.url.raw,
@@ -838,6 +1005,21 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                 attachActiveTab()
                 hideStartPage()
                 false // استمرار التحميل الأصلي داخل التبويب المعتمد
+            }
+
+            is NavigationDecision.PendingVerification -> {
+                val targetUrl = decision.url.canonical()
+                lifecycleScope.launch {
+                    when (val resolved = resolvePendingYoutubeDecision(decision)) {
+                        is NavigationDecision.Allow -> navigateFromExternal(targetUrl, newTab = true)
+                        is NavigationDecision.Block -> {
+                            recordBlockedNavigation(resolved.rawUrl ?: targetUrl, resolved.reason, type)
+                            showErrorBlockScreen(resolved.rawUrl ?: targetUrl, resolved.detail, resolved.reason)
+                        }
+                        else -> Unit
+                    }
+                }
+                true
             }
 
             is NavigationDecision.OpenExternal -> {
@@ -914,6 +1096,8 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     }
 
     override fun onPageStarted(view: WebView, url: String?) {
+        syncTabYoutubeAuthorization(view, url)
+        YoutubeWebViewGuard.injectHardeningIfYoutube(view, url)
         if (view != activeWebView()) return
         runOnUiThread {
             if (!url.isNullOrBlank()) {
@@ -930,6 +1114,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     }
 
     override fun onPageFinished(view: WebView, url: String?, title: String?) {
+        YoutubeWebViewGuard.injectHardeningIfYoutube(view, url)
         if (view != activeWebView()) return
         runOnUiThread {
             view.updateNavigationState()
@@ -1063,7 +1248,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     // ————————————————— شاشة الحظر —————————————————
 
     override fun showBlockScreen(url: String?, host: String?, reason: BlockReason, type: NavigationType) {
-        runOnUiThread { showErrorBlockScreen(url, host) }
+        runOnUiThread { showErrorBlockScreen(url, host, reason) }
     }
 
     private fun hideBlockOverlay() {
@@ -1106,9 +1291,13 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         activeWebView()?.let { it.stopLoading() }
         lifecycleScope.launch {
             val rules = ServiceLocator.whiteListRepository.currentRules().filter { it.enabled }
+            val ytActive = ServiceLocator.settingsRepository.youtubeChannelMode
+            val ytChannels = if (ytActive) {
+                ServiceLocator.youtubeChannelRepository.currentChannels().filter { it.enabled }
+            } else emptyList()
+
             // v1.7.0 — شبكة مواقع احترافية بأيقونات حقيقية بدل أزرار نصية
             startBinding.sitesCount.text = getString(R.string.start_sites_count, rules.size)
-            startBinding.emptyMessage.isVisible = rules.isEmpty()
             startBinding.sitesGrid.isVisible = rules.isNotEmpty()
             startBinding.sitesGrid.adapter = StartSitesAdapter(
                 rules,
@@ -1120,6 +1309,20 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                 },
                 onRemove = { rule -> confirmRemoveSite(rule) }
             )
+
+            // v1.15.0 — بطاقات قنوات يوتيوب المسموحة في صفحة البداية
+            startBinding.youtubeSection.isVisible = ytChannels.isNotEmpty()
+            if (ytChannels.isNotEmpty()) {
+                startBinding.youtubeChannelsCount.text =
+                    getString(R.string.start_youtube_channels_count, ytChannels.size)
+                startBinding.youtubeChannelsGrid.adapter = StartYoutubeChannelsAdapter(ytChannels) { ch ->
+                    lifecycleScope.launch {
+                        val channelUrl = "https://m.youtube.com/channel/${ch.channelId}"
+                        navigateInternal(channelUrl, NavigationType.INITIAL)
+                    }
+                }
+            }
+            startBinding.emptyMessage.isVisible = rules.isEmpty() && ytChannels.isEmpty()
         }
     }
 
@@ -1514,7 +1717,94 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                     externalHandler.handle(decision.scheme, decision.target)
                 is NavigationDecision.Block ->
                     recordBlockedNavigation(decision.rawUrl ?: rawUrl, decision.reason, NavigationType.JS)
-                is NavigationDecision.Allow -> Unit // about:blank/blob — لا شيء
+                is NavigationDecision.Allow, is NavigationDecision.PendingVerification -> Unit
+            }
+        }
+    }
+
+    // ————————————————— دعم وضع قنوات يوتيوب المسموحة (v1.15.0) —————————————————
+
+    override fun tabSession(tabId: Long): TabSession? = tabsManager.find(tabId)
+
+    override fun shouldInterceptRequest(tabId: Long, request: WebResourceRequest): WebResourceResponse? =
+        YoutubeWebViewGuard.interceptRequest(request, tabsManager.find(tabId))
+
+    private fun syncTabYoutubeAuthorization(view: WebView, url: String?) {
+        val tab = tabsManager.find(idForWebView(view)) ?: return
+        if (!ServiceLocator.youtubeChannelPolicy.isActive() || ServiceLocator.temporaryAccess.isActive()) {
+            tab.authorizedYoutubeVideoId = null
+            tab.authorizedEmbedVideoIds.clear()
+            return
+        }
+        if (url.isNullOrBlank()) return
+        val target = com.securebrowser.app.security.youtube.YoutubeUrlParser.classifyRaw(url)
+        when (target) {
+            is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.Video -> {
+                val allowedIds = ServiceLocator.youtubeChannelRepository.enabledChannelIds()
+                val cachedChannel = ServiceLocator.youtubeChannelRepository.cachedChannelIdForVideoInMemory(target.videoId)
+                tab.authorizedYoutubeVideoId = if (cachedChannel != null && cachedChannel in allowedIds) {
+                    target.videoId
+                } else null
+                tab.authorizedEmbedVideoIds.clear()
+            }
+            is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.ChannelById,
+            is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.ChannelByHandle,
+            is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.LegacyChannelPath -> {
+                tab.authorizedYoutubeVideoId = null
+                tab.authorizedEmbedVideoIds.clear()
+            }
+            is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.NonYoutube -> {
+                tab.authorizedYoutubeVideoId = null
+                tab.authorizedEmbedVideoIds.clear()
+            }
+            else -> tab.authorizedYoutubeVideoId = null
+        }
+    }
+
+    private fun promptAddBlockedYoutubeChannel(rawUrl: String) {
+        com.securebrowser.app.ui.PinGate.show(this) {
+            lifecycleScope.launch {
+                val res = ServiceLocator.youtubeChannelVerifier.resolveChannelFromInput(rawUrl)
+                when (res) {
+                    is com.securebrowser.app.security.youtube.YoutubeChannelVerifier.ChannelResolveResult.Failure -> {
+                        Toast.makeText(
+                            this@BrowserActivity,
+                            R.string.youtube_channel_resolve_failed,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    is com.securebrowser.app.security.youtube.YoutubeChannelVerifier.ChannelResolveResult.Success -> {
+                        val info = res.info
+                        com.google.android.material.dialog.MaterialAlertDialogBuilder(this@BrowserActivity)
+                            .setTitle(R.string.youtube_confirm_add_title)
+                            .setMessage(
+                                getString(
+                                    R.string.youtube_confirm_add_message,
+                                    info.title,
+                                    info.handle ?: info.channelId
+                                )
+                            )
+                            .setPositiveButton(R.string.youtube_btn_add_channel) { _, _ ->
+                                lifecycleScope.launch {
+                                    ServiceLocator.youtubeChannelRepository.upsertChannel(
+                                        channelId = info.channelId,
+                                        handle = info.handle,
+                                        title = info.title,
+                                        avatarUrl = info.avatarUrl,
+                                        enabled = true
+                                    )
+                                    Toast.makeText(
+                                        this@BrowserActivity,
+                                        getString(R.string.youtube_channel_added, info.title),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    navigateInternal(rawUrl, NavigationType.LINK)
+                                }
+                            }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
+                    }
+                }
             }
         }
     }

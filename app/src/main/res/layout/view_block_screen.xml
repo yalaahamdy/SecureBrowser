@@ -24,6 +24,7 @@
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/blockSubtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -65,4 +66,13 @@
             android:layout_height="wrap_content"
             android:text="@string/block_btn_previous" />
     </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnBlockAddYoutubeChannel"
+        style="@style/Widget.SecureBrowser.Button.ErrorOutlined"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:text="@string/block_btn_add_youtube_channel"
+        android:visibility="gone" />
 </LinearLayout>

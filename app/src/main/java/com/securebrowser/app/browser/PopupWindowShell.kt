@@ -90,6 +90,14 @@ class PopupWindowShell(
             return controller.handleMainFrameDecision(view, decision, raw, type)
         }
 
+        override fun shouldInterceptRequest(
+            view: WebView,
+            request: WebResourceRequest
+        ): android.webkit.WebResourceResponse? {
+            return YoutubeWebViewGuard.interceptRequest(request, null)
+                ?: super.shouldInterceptRequest(view, request)
+        }
+
         override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
             if (adopted.get()) controller.verifyCommittedPage(view, url)
             // قبل الاعتماد: about:blank/blob لا يخفيان خطرًا — لا قرار مطلوب
@@ -166,6 +174,7 @@ class PopupWindowShell(
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         webChromeClient = provisionalChromeClient
         webViewClient = provisionalClient
+        YoutubeWebViewGuard.attach(this, { null }, controller)
         // v1.12.0 — ربط مستمع التنزيلات منذ اللحظة الأولى لالتقاط تنزيلات target="_blank" فورًا
         SecureWebViewFactory.attachDownloadListener(this, controller) {
             if (!adopted.get()) {

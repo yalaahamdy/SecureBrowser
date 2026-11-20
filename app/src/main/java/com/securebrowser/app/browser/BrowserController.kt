@@ -5,6 +5,8 @@ import android.os.Message
 import android.view.View
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import com.securebrowser.app.security.SecurityEngine
 import com.securebrowser.app.security.model.BlockReason
@@ -98,4 +100,10 @@ interface BrowserController {
 
     /** قائمة الضغطة المطوّلة على صورة أو رابط داخل الصفحة (لتنزيل الصور والملفات مباشرة). */
     fun onLongPressElement(webView: WebView, hitType: Int, extra: String) = Unit
+
+    /** البحث عن جلسة التبويب (thread-safe للاستخدام من خيط الشبكة). */
+    fun tabSession(tabId: Long): TabSession? = null
+
+    /** اعتراض طلبات الشبكة (مثل بث googlevideo أو إطارات /embed/) على الخيط الخلفي. */
+    fun shouldInterceptRequest(tabId: Long, request: WebResourceRequest): WebResourceResponse? = null
 }

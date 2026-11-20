@@ -81,6 +81,10 @@
                     layout="@layout/row_action_card" />
 
                 <include
+                    android:id="@+id/cardYoutubeChannels"
+                    layout="@layout/row_action_card" />
+
+                <include
                     android:id="@+id/cardTempAccess"
                     layout="@layout/row_action_card" />
             </LinearLayout>

@@ -574,6 +574,10 @@ class ParentalSettingsActivity : AppCompatActivity() {
                 append("\n")
                 append(getString(R.string.backup_count_whitelist, counts.whitelist))
                 append("\n")
+                if (counts.youtubeChannels > 0) {
+                    append(getString(R.string.backup_count_youtube, counts.youtubeChannels))
+                    append("\n")
+                }
                 append(getString(R.string.backup_count_history, counts.history))
                 append("\n")
                 append(getString(R.string.backup_count_downloads, counts.downloads))
@@ -640,6 +644,10 @@ class ParentalSettingsActivity : AppCompatActivity() {
                 append("\n")
                 append(getString(R.string.backup_count_whitelist, summary.whitelist))
                 append("\n")
+                if (summary.youtubeChannels > 0) {
+                    append(getString(R.string.backup_count_youtube, summary.youtubeChannels))
+                    append("\n")
+                }
                 append(getString(R.string.backup_count_history, summary.history))
                 append("\n")
                 append(getString(R.string.backup_count_downloads, summary.downloads))
@@ -669,6 +677,8 @@ class ParentalSettingsActivity : AppCompatActivity() {
                             toast(getString(R.string.backup_import_failed, backupErrorLabel(e)))
                             return@launch
                         }
+                        ServiceLocator.whiteListEngine.refresh()
+                        ServiceLocator.youtubeChannelRepository.refreshSnapshot()
                         toast(buildImportResultMessage(outcome))
                         refreshValues()
                     }
@@ -685,6 +695,7 @@ class ParentalSettingsActivity : AppCompatActivity() {
             return getString(R.string.backup_import_nothing)
         }
         if (outcome.rulesAdded > 0) parts.add(getString(R.string.backup_res_whitelist, outcome.rulesAdded))
+        if (outcome.youtubeChannelsAdded > 0) parts.add(getString(R.string.backup_res_youtube, outcome.youtubeChannelsAdded))
         if (outcome.historyAdded > 0) parts.add(getString(R.string.backup_res_history, outcome.historyAdded))
         if (outcome.downloadsAdded > 0) parts.add(getString(R.string.backup_res_downloads, outcome.downloadsAdded))
         if (outcome.blockedAdded > 0) parts.add(getString(R.string.backup_res_blocked, outcome.blockedAdded))

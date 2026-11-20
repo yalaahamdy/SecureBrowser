@@ -68,7 +68,10 @@ class ParentalActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (!lockedOut) restartLockTimer()
+        if (!lockedOut) {
+            restartLockTimer()
+            renderStatusCards()
+        }
     }
 
     override fun onUserInteraction() {
@@ -119,6 +122,18 @@ class ParentalActivity : AppCompatActivity() {
         )
         tempRow.tag = "temp_row"
         binding.statusContainer.addView(tempRow)
+        binding.statusContainer.addView(
+            statusRow(
+                R.drawable.ic_play,
+                getString(R.string.status_youtube_channels),
+                if (settings.youtubeChannelMode) {
+                    val count = ServiceLocator.youtubeChannelRepository.enabledChannelIds().size
+                    "${getString(R.string.value_on)} ($count)"
+                } else {
+                    getString(R.string.value_off)
+                }
+            )
+        )
         binding.statusContainer.addView(
             statusRow(R.drawable.ic_history, getString(R.string.status_history), getString(R.string.value_enabled))
         )
@@ -175,6 +190,9 @@ class ParentalActivity : AppCompatActivity() {
         }
         bindCard(binding.cardAddWebsite, R.drawable.ic_add, getString(R.string.card_add_website), getString(R.string.card_add_website_sub)) {
             startActivity(Intent(this, AddWebsiteActivity::class.java))
+        }
+        bindCard(binding.cardYoutubeChannels, R.drawable.ic_play, getString(R.string.card_youtube_channels), getString(R.string.card_youtube_channels_sub)) {
+            startActivity(Intent(this, YoutubeChannelsActivity::class.java))
         }
         bindCard(binding.cardTempAccess, R.drawable.ic_timer, getString(R.string.card_temp_access), getString(R.string.card_temp_access_sub)) {
             startActivity(Intent(this, TempAccessActivity::class.java))

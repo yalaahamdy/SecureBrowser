@@ -27,6 +27,18 @@ class TabSession(
     var pendingRestoreUrl: String? = null
 
     /**
+     * v1.15.0 — معرف فيديو يوتيوب المصرَّح بتشغيله حاليًا في هذا التبويب (thread-safe).
+     * يضبطه Kotlin وحده بعد التحقق من انتماء الفيديو لقناة مسموحة؛ وعندما يكون null
+     * تُحظر طلبات البث المباشر `*.googlevideo.com/videoplayback` في وضع القنوات.
+     */
+    @Volatile
+    var authorizedYoutubeVideoId: String? = null
+
+    /** معرفات فيديوهات التضمين (iframe /embed/ID) المصرَّح لها داخل صفحة التبويب الحالية. */
+    val authorizedEmbedVideoIds: MutableSet<String> =
+        java.util.Collections.synchronizedSet(mutableSetOf())
+
+    /**
      * آخر رابط حاول المستخدم الوصول إليه واعترضته طبقة الأمان (v1.6.0).
      *
      * v1.5.0 وما قبله كان يعاني: عند حظر رابط يبقى شريط العنوان وحوار

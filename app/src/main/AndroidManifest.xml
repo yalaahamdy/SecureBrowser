@@ -157,6 +157,7 @@
 
         <activity android:name=".parental.WhitelistActivity" android:exported="false" />
         <activity android:name=".parental.AddWebsiteActivity" android:exported="false" />
+        <activity android:name=".parental.YoutubeChannelsActivity" android:exported="false" />
         <activity android:name=".parental.TempAccessActivity" android:exported="false" />
         <activity android:name=".parental.HistoryActivity" android:exported="false" />
         <activity android:name=".parental.BlockedActivityActivity" android:exported="false" />

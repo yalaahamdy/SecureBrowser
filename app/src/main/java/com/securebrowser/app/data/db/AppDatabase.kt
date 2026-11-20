@@ -11,16 +11,21 @@ import com.securebrowser.app.data.db.dao.BlockedActivityDao
 import com.securebrowser.app.data.db.dao.DownloadRecordDao
 import com.securebrowser.app.data.db.dao.HistoryDao
 import com.securebrowser.app.data.db.dao.WhiteListRuleDao
+import com.securebrowser.app.data.db.dao.YoutubeChannelDao
 import com.securebrowser.app.data.db.entity.AppSettingEntity
 import com.securebrowser.app.data.db.entity.BlockedActivityEntity
 import com.securebrowser.app.data.db.entity.DownloadRecordEntity
 import com.securebrowser.app.data.db.entity.HistoryEntity
 import com.securebrowser.app.data.db.entity.WhiteListRuleEntity
+import com.securebrowser.app.data.db.entity.YoutubeChannelEntity
+import com.securebrowser.app.data.db.entity.YoutubeVideoCacheEntity
 
 /**
- * قاعدة البيانات المحلية — v2 (مرحلة 2).
- * الجداول: white_list_rules, history, blocked_activity, downloads, app_settings.
+ * قاعدة البيانات المحلية — v3.
+ * الجداول: white_list_rules, history, blocked_activity, downloads, app_settings,
+ * youtube_allowed_channels, youtube_video_cache.
  * v2: أعمدة التنزيلات الكاملة (downloadedBytes, filePath, updatedAt) + فهارس الحالة.
+ * v3: جداول قنوات يوتيوب المسموحة وكاش ربط الفيديو بالقناة.
  */
 @Database(
     entities = [
@@ -28,9 +33,11 @@ import com.securebrowser.app.data.db.entity.WhiteListRuleEntity
         HistoryEntity::class,
         BlockedActivityEntity::class,
         DownloadRecordEntity::class,
-        AppSettingEntity::class
+        AppSettingEntity::class,
+        YoutubeChannelEntity::class,
+        YoutubeVideoCacheEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -40,6 +47,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun blockedActivityDao(): BlockedActivityDao
     abstract fun downloadRecordDao(): DownloadRecordDao
     abstract fun appSettingsDao(): AppSettingsDao
+    abstract fun youtubeChannelDao(): YoutubeChannelDao
 
     companion object {
 
@@ -53,13 +61,45 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v2 → v3: جداول قنوات يوتيوب المسموحة وكاش الفيديوهات. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS youtube_allowed_channels (
+                        channelId TEXT NOT NULL PRIMARY KEY,
+                        handle TEXT DEFAULT NULL,
+                        title TEXT NOT NULL,
+                        avatarUrl TEXT DEFAULT NULL,
+                        enabled INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_youtube_allowed_channels_handle ON youtube_allowed_channels(handle)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_youtube_allowed_channels_enabled ON youtube_allowed_channels(enabled)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS youtube_video_cache (
+                        videoId TEXT NOT NULL PRIMARY KEY,
+                        channelId TEXT NOT NULL,
+                        cachedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_youtube_video_cache_channelId ON youtube_video_cache(channelId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_youtube_video_cache_cachedAt ON youtube_video_cache(cachedAt)")
+            }
+        }
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "secure_browser.db"
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(SeedCallback())
                 .build()
     }

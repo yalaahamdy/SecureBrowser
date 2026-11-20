@@ -12,8 +12,8 @@ android {
         applicationId = "com.securebrowser.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 17
-        versionName = "1.14.0"
+        versionCode = 18
+        versionName = "1.15.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations.addAll(listOf("en", "ar"))
     }
@@ -62,6 +62,7 @@ dependencies {
     // AndroidX core stack
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.webkit:webkit:1.11.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     // v1.6.0: السحب من الأعلى لإعادة التحميل (بديل زر الشريط السفلي)

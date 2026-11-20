@@ -21,13 +21,25 @@ enum class BlockReason {
     EMBEDDED_CREDENTIALS,
     NOT_WHITELISTED,
     SECURITY_ERROR,
-    DOWNLOAD_POLICY
+    DOWNLOAD_POLICY,
+    YOUTUBE_CHANNEL_NOT_ALLOWED
 }
 
 /** قرار طبقة الأمان النهائي لأي تنقل. */
 sealed class NavigationDecision {
     /** مسموح — الشعار المعاد بناؤه هو ما سيُحمَّل فعليًا. */
     data class Allow(val url: com.securebrowser.app.core.url.ParsedUrl) : NavigationDecision()
+
+    /**
+     * بانتظار تحقق خلفي متزامن (مثل فحص قناة فيديو يوتيوب أو @handle غير مخزّن بالكاش بعد).
+     * يُمنع تحميل الصفحة مؤقتًا (fail-closed) حتى يصدر قرار السماح أو الحظر على الخيط الخلفي.
+     */
+    data class PendingVerification(
+        val url: com.securebrowser.app.core.url.ParsedUrl,
+        val videoId: String? = null,
+        val handle: String? = null,
+        val legacyChannelPath: String? = null
+    ) : NavigationDecision()
 
     /** محظور — بدون أي خيار تجاوز في الواجهة. */
     data class Block(

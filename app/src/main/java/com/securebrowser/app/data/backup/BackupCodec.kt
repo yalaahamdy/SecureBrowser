@@ -5,9 +5,11 @@ import com.securebrowser.app.data.db.entity.BlockedActivityEntity
 import com.securebrowser.app.data.db.entity.DownloadRecordEntity
 import com.securebrowser.app.data.db.entity.HistoryEntity
 import com.securebrowser.app.data.db.entity.WhiteListRuleEntity
+import com.securebrowser.app.data.db.entity.YoutubeChannelEntity
 import com.securebrowser.app.security.storage.PinManager
 import com.securebrowser.app.security.whitelist.RuleType
 import com.securebrowser.app.security.whitelist.SubdomainPolicy
+import com.securebrowser.app.security.youtube.YoutubeUrlParser
 import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
@@ -52,6 +54,7 @@ object BackupCodec {
     private const val SECTION_BLOCKED = "blocked"
     private const val SECTION_SETTINGS = "settings"
     private const val SECTION_PIN = "pin"
+    private const val SECTION_YOUTUBE_CHANNELS = "youtubeChannels"
 
     /** خطأ هيكلي موصوف — تُترجمه الواجهة إلى رسالة عربية مناسبة. */
     class BackupException(val reason: String) : Exception(reason)
@@ -65,7 +68,8 @@ object BackupCodec {
         val downloads: Int,
         val blocked: Int,
         val settings: Int,
-        val hasPin: Boolean
+        val hasPin: Boolean,
+        val youtubeChannels: Int = 0
     )
 
     /** نتيجة الاستيراد (تُعرض للوالد). */
@@ -76,9 +80,10 @@ object BackupCodec {
         val downloadsAdded: Int,
         val blockedAdded: Int,
         val settingsApplied: Int,
-        val pinRestored: Boolean
+        val pinRestored: Boolean,
+        val youtubeChannelsAdded: Int = 0
     ) {
-        fun totalAdded(): Int = rulesAdded + historyAdded + downloadsAdded + blockedAdded
+        fun totalAdded(): Int = rulesAdded + historyAdded + downloadsAdded + blockedAdded + youtubeChannelsAdded
     }
 
     /** بيانات مُحلَّلة ومتحقق منها — جاهزة للتطبيق على القاعدة. */
@@ -90,7 +95,8 @@ object BackupCodec {
         val downloads: List<DownloadRecordEntity>,
         val blocked: List<BlockedActivityEntity>,
         val settings: List<AppSettingEntity>,
-        val pin: PinManager.PinSnapshot?
+        val pin: PinManager.PinSnapshot?,
+        val youtubeChannels: List<YoutubeChannelEntity> = emptyList()
     )
 
     // ————————————————— الترميز —————————————————
@@ -102,7 +108,8 @@ object BackupCodec {
         blocked: List<BlockedActivityEntity>,
         settings: List<AppSettingEntity>,
         pin: PinManager.PinSnapshot?,
-        appVersion: String
+        appVersion: String,
+        youtubeChannels: List<YoutubeChannelEntity> = emptyList()
     ): JSONObject {
         val sections = JSONObject()
             .put(SECTION_WHITELIST, whitelist.map { whitelistToJson(it) }.toJsonArray())
@@ -115,6 +122,9 @@ object BackupCodec {
                     .map { JSONObject().put("key", it.key).put("value", it.value) }
                     .toJsonArray()
             )
+        if (youtubeChannels.isNotEmpty()) {
+            sections.put(SECTION_YOUTUBE_CHANNELS, youtubeChannels.map { youtubeToJson(it) }.toJsonArray())
+        }
         if (pin != null) sections.put(SECTION_PIN, pinToJson(pin))
         return JSONObject()
             .put("format", FORMAT)
@@ -145,7 +155,8 @@ object BackupCodec {
             downloads = parseDownloads(sections.optJSONArray(SECTION_DOWNLOADS) ?: JSONArray()),
             blocked = parseBlocked(sections.optJSONArray(SECTION_BLOCKED) ?: JSONArray()),
             settings = parseSettings(sections.optJSONArray(SECTION_SETTINGS) ?: JSONArray()),
-            pin = parsePin(sections.optJSONObject(SECTION_PIN))
+            pin = parsePin(sections.optJSONObject(SECTION_PIN)),
+            youtubeChannels = parseYoutubeChannels(sections.optJSONArray(SECTION_YOUTUBE_CHANNELS) ?: JSONArray())
         )
     }
 
@@ -166,7 +177,8 @@ object BackupCodec {
             downloads = count(SECTION_DOWNLOADS),
             blocked = count(SECTION_BLOCKED),
             settings = count(SECTION_SETTINGS),
-            hasPin = sections.has(SECTION_PIN)
+            hasPin = sections.has(SECTION_PIN),
+            youtubeChannels = count(SECTION_YOUTUBE_CHANNELS)
         )
     }
 
@@ -422,6 +434,46 @@ object BackupCodec {
         } catch (e: Exception) {
             null
         }
+    }
+
+    // ————————————————— قسم قنوات يوتيوب —————————————————
+
+    private fun youtubeToJson(e: YoutubeChannelEntity): JSONObject = JSONObject()
+        .put("channelId", e.channelId)
+        .put("handle", e.handle ?: JSONObject.NULL)
+        .put("title", e.title)
+        .put("avatarUrl", e.avatarUrl ?: JSONObject.NULL)
+        .put("enabled", e.enabled)
+        .put("createdAt", e.createdAt)
+        .put("updatedAt", e.updatedAt)
+
+    private fun parseYoutubeChannels(array: JSONArray): List<YoutubeChannelEntity> {
+        val out = ArrayList<YoutubeChannelEntity>(array.length())
+        for (i in 0 until array.length()) {
+            val item = array.optJSONObject(i) ?: continue
+            try {
+                val channelId = item.optString("channelId", "").trim()
+                if (!YoutubeUrlParser.isValidChannelId(channelId)) continue
+                val title = item.optString("title", "").trim().ifEmpty { channelId }.take(120)
+                val handle = item.optString("handle", "").takeIf { it.isNotBlank() }?.take(64)
+                val avatarUrl = item.optString("avatarUrl", "").takeIf { it.isNotBlank() }?.take(512)
+                val now = System.currentTimeMillis()
+                out.add(
+                    YoutubeChannelEntity(
+                        channelId = channelId,
+                        handle = handle,
+                        title = title,
+                        avatarUrl = avatarUrl,
+                        enabled = item.optBoolean("enabled", true),
+                        createdAt = item.optLong("createdAt", now).coerceAtLeast(0),
+                        updatedAt = item.optLong("updatedAt", now).coerceAtLeast(0)
+                    )
+                )
+            } catch (_: Exception) {
+                continue
+            }
+        }
+        return out
     }
 
     // ————————————————— أدوات —————————————————

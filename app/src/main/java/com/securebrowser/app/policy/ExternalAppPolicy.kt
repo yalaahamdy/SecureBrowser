@@ -34,6 +34,13 @@ object ExternalAppPolicy {
         "youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be",
         "music.youtube.com", "www.youtu.be"
     )
+
+    val YOUTUBE_PACKAGES: Set<String> = setOf(
+        "com.google.android.youtube",
+        "com.google.android.apps.youtube.music",
+        "com.google.android.apps.youtube.kids",
+        "com.google.android.youtube.tv"
+    )
     private val MAPS_HOSTS = setOf("maps.google.com", "google.com", "www.google.com", "goo.gl")
 
     // ————————————————— مشغلات الوسائط الخارجية (v1.2.0) —————————————————
@@ -139,7 +146,7 @@ object ExternalAppPolicy {
      * وينتمي لنطاقات تطبيقات معروفة. مثال المواصفة: رابط t.me → "Open in Telegram"
      * إن كان مثبتًا، وإلا فتح المتصفح إذا كانت الوجهة مسموحة.
      */
-    fun suggestForWebUrl(url: String): Suggestion? {
+    fun suggestForWebUrl(url: String, suppressYoutubeSuggestion: Boolean = false): Suggestion? {
         val parsed = when (val r = UrlNormalizer.normalize(url)) {
             is NormalizeResult.Success -> r.url
             is NormalizeResult.Invalid -> return null
@@ -150,12 +157,24 @@ object ExternalAppPolicy {
         return when {
             host in TELEGRAM_HOSTS -> Suggestion(AppKind.TELEGRAM, url, "Telegram")
             host in WHATSAPP_HOSTS -> Suggestion(AppKind.WHATSAPP, url, "WhatsApp")
-            host in YOUTUBE_HOSTS -> Suggestion(AppKind.YOUTUBE, url, "YouTube")
+            host in YOUTUBE_HOSTS ->
+                if (suppressYoutubeSuggestion) null else Suggestion(AppKind.YOUTUBE, url, "YouTube")
             host == "maps.google.com" ||
                 (host in MAPS_HOSTS && path.startsWith("/maps")) ->
                 Suggestion(AppKind.MAPS, url, "Maps")
             else -> null
         }
+    }
+
+    /** هل يستهدف هذا الـ intent تطبيق يوتيوب الرسمي/الموسيقي/الأطفال؟ */
+    fun isYoutubeIntent(intentUri: String): Boolean {
+        val pkg = intentTargetPackage(intentUri)?.lowercase()
+        if (pkg != null && pkg in YOUTUBE_PACKAGES) return true
+        val innerScheme = intentInnerScheme(intentUri)
+        if (innerScheme == "vnd.youtube" || innerScheme == "youtube") return true
+        val fallback = intentFallbackUrl(intentUri)?.lowercase()
+        if (fallback != null && (fallback.contains("youtube.com") || fallback.contains("youtu.be"))) return true
+        return false
     }
 
     /** تصنيف مخطط خارجي مباشر (tg:/whatsapp:/vnd.youtube:/geo:/mailto:/tel:/sms:...). */

@@ -9,12 +9,15 @@ import com.securebrowser.app.data.repository.DownloadRepository
 import com.securebrowser.app.data.repository.HistoryRepository
 import com.securebrowser.app.data.repository.SettingsRepository
 import com.securebrowser.app.data.repository.WhiteListRepository
+import com.securebrowser.app.data.repository.YoutubeChannelRepository
 import com.securebrowser.app.parental.ParentalAuthManager
 import com.securebrowser.app.policy.InMemoryTempAccessStore
 import com.securebrowser.app.policy.PolicyManager
 import com.securebrowser.app.policy.TempAccessStore
 import com.securebrowser.app.policy.TemporaryAccessManager
 import com.securebrowser.app.security.SecurityEngine
+import com.securebrowser.app.security.youtube.YoutubeChannelPolicy
+import com.securebrowser.app.security.youtube.YoutubeChannelVerifier
 import com.securebrowser.app.security.storage.BruteForceProtector
 import com.securebrowser.app.security.storage.PinManager
 import com.securebrowser.app.security.storage.SecureStorage
@@ -46,6 +49,12 @@ object ServiceLocator {
     lateinit var downloadRepository: DownloadRepository
         private set
     lateinit var settingsRepository: SettingsRepository
+        private set
+    lateinit var youtubeChannelRepository: YoutubeChannelRepository
+        private set
+    lateinit var youtubeChannelPolicy: YoutubeChannelPolicy
+        private set
+    lateinit var youtubeChannelVerifier: YoutubeChannelVerifier
         private set
 
     lateinit var secureStorage: SecureStorage
@@ -87,6 +96,17 @@ object ServiceLocator {
             blockedActivityRepository = BlockedActivityRepository(database.blockedActivityDao())
             downloadRepository = DownloadRepository(database.downloadRecordDao())
             settingsRepository = SettingsRepository(database.appSettingsDao(), applicationScope)
+            youtubeChannelRepository = YoutubeChannelRepository(database.youtubeChannelDao(), applicationScope)
+            youtubeChannelPolicy = YoutubeChannelPolicy(
+                modeEnabled = { settingsRepository.youtubeChannelMode },
+                blockShorts = { settingsRepository.youtubeBlockShorts },
+                enabledChannelIds = { youtubeChannelRepository.enabledChannelIds() },
+                channelIdForHandle = { handle -> youtubeChannelRepository.channelIdForHandle(handle) },
+                cachedChannelForVideo = { videoId ->
+                    youtubeChannelRepository.cachedChannelIdForVideoInMemory(videoId)
+                }
+            )
+            youtubeChannelVerifier = YoutubeChannelVerifier(youtubeChannelRepository, settingsRepository)
 
             secureStorage = SecureStorage(appContext)
             pinManager = PinManager(secureStorage)
@@ -111,7 +131,8 @@ object ServiceLocator {
                     else searchEngineInfraHosts(settingsRepository.searchEngine)
                 },
                 localNetworkAllowed = { settingsRepository.allowLocalNetwork },
-                searchEngineBlocked = { settingsRepository.blockSearchEngine }
+                searchEngineBlocked = { settingsRepository.blockSearchEngine },
+                youtubeChannelPolicy = youtubeChannelPolicy
             )
 
             downloadManager = BrowserDownloadManager(appContext, downloadRepository, applicationScope)
@@ -123,6 +144,7 @@ object ServiceLocator {
             // قيم block/approval سابقًا. الوالد يستطيع دائمًا التشديد لاحقًا من الشاشة.
             applicationScope.launch {
                 settingsRepository.warmUp()
+                youtubeChannelRepository.warmUp()
                 if (settingsRepository.int("policy_schema", 1) < 2) {
                     settingsRepository.put("apk_policy", "allow")
                     settingsRepository.put("archive_policy", "allow")

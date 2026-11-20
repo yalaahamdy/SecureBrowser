@@ -214,6 +214,35 @@ class BackupCodecTest {
         assertNull(BackupCodec.parse(bad.toString()).pin)
     }
 
+    @Test
+    fun `youtube channels round trip preserves valid channels and skips invalid ids`() {
+        val ch = com.securebrowser.app.data.db.entity.YoutubeChannelEntity(
+            channelId = "UC_x5XG1OV2P6uZZ5FSM9Ttw",
+            handle = "@googledevelopers",
+            title = "Google for Developers",
+            avatarUrl = "https://yt3.googleusercontent.com/a.jpg",
+            enabled = true,
+            createdAt = 100L,
+            updatedAt = 200L
+        )
+        val encoded = BackupCodec.encode(
+            whitelist = emptyList(),
+            history = emptyList(),
+            downloads = emptyList(),
+            blocked = emptyList(),
+            settings = emptyList(),
+            pin = null,
+            appVersion = "1.15.0",
+            youtubeChannels = listOf(ch)
+        )
+        val summary = BackupCodec.summarize(encoded.toString())
+        assertEquals(1, summary.youtubeChannels)
+        val parsed = BackupCodec.parse(encoded.toString())
+        assertEquals(1, parsed.youtubeChannels.size)
+        assertEquals("UC_x5XG1OV2P6uZZ5FSM9Ttw", parsed.youtubeChannels[0].channelId)
+        assertEquals("@googledevelopers", parsed.youtubeChannels[0].handle)
+    }
+
     // ————— أدوات —————
 
     private fun assertFails(reason: String, block: () -> Unit) {

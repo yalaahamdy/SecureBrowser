@@ -33,7 +33,8 @@ class BackupManager(
         val downloads: Int,
         val blocked: Int,
         val settings: Int,
-        val hasPin: Boolean
+        val hasPin: Boolean,
+        val youtubeChannels: Int = 0
     )
 
     suspend fun counts(): BackupCounts = database.withTransaction {
@@ -43,7 +44,8 @@ class BackupManager(
             downloads = database.downloadRecordDao().count(),
             blocked = database.blockedActivityDao().count(),
             settings = database.appSettingsDao().getAll().size,
-            hasPin = pinManager.hasPin()
+            hasPin = pinManager.hasPin(),
+            youtubeChannels = database.youtubeChannelDao().countChannels()
         )
     }
 
@@ -57,7 +59,8 @@ class BackupManager(
                 blocked = database.blockedActivityDao().getAll(),
                 settings = database.appSettingsDao().getAll(),
                 pin = if (includePin) pinManager.exportData() else null,
-                appVersion = appVersion
+                appVersion = appVersion,
+                youtubeChannels = database.youtubeChannelDao().getAllChannels()
             )
         }
 
@@ -139,6 +142,19 @@ class BackupManager(
                 settingsApplied++
             }
 
+            // ————— قنوات يوتيوب المسموحة —————
+            val ytDao = database.youtubeChannelDao()
+            var youtubeAdded = 0
+            if (mode == ImportMode.REPLACE) ytDao.deleteAllChannels()
+            val existingYtIds = if (mode == ImportMode.MERGE) {
+                ytDao.getAllChannels().map { it.channelId }.toHashSet()
+            } else emptySet()
+            for (ch in parsed.youtubeChannels) {
+                if (mode == ImportMode.MERGE && ch.channelId in existingYtIds) continue
+                ytDao.upsertChannel(ch)
+                youtubeAdded++
+            }
+
             // ————— الرمز — قرار والد صريح —————
             val pinRestored = restorePin && parsed.pin != null &&
                 pinManager.restoreData(parsed.pin)
@@ -150,7 +166,8 @@ class BackupManager(
                 downloadsAdded = downloadsAdded,
                 blockedAdded = blockedAdded,
                 settingsApplied = settingsApplied,
-                pinRestored = pinRestored
+                pinRestored = pinRestored,
+                youtubeChannelsAdded = youtubeAdded
             )
         }
     }

@@ -6,6 +6,7 @@ import android.webkit.HttpAuthHandler
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
@@ -48,6 +49,14 @@ class SecureWebViewClient(
             else com.securebrowser.app.security.model.NavigationType.LINK
         val decision = controller.securityEngine().validate(raw, type)
         return controller.handleMainFrameDecision(view, decision, raw, type)
+    }
+
+    override fun shouldInterceptRequest(
+        view: WebView,
+        request: WebResourceRequest
+    ): WebResourceResponse? {
+        return controller.shouldInterceptRequest(tabId, request)
+            ?: super.shouldInterceptRequest(view, request)
     }
 
     override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {

@@ -8,6 +8,7 @@ import com.securebrowser.app.security.model.BlockReason
 import com.securebrowser.app.security.model.NavigationDecision
 import com.securebrowser.app.security.model.NavigationType
 import com.securebrowser.app.security.whitelist.WhiteListEngine
+import com.securebrowser.app.security.youtube.YoutubeChannelPolicy
 
 /**
  * واجهة الأمان الموحدة (Security Layer facade).
@@ -30,7 +31,9 @@ class SecurityEngine(
     /** v1.9.0 — بوابة الوالد للسماح بالروابط المحلية (الافتراضي مفعّل). */
     private val localNetworkAllowed: () -> Boolean = { true },
     /** v1.12.0 — بوابة الوالد لحظر محركات البحث بالكامل (جوجل/بينج/دك دك جو والصور والفيديوهات عليها). */
-    private val searchEngineBlocked: () -> Boolean = { false }
+    private val searchEngineBlocked: () -> Boolean = { false },
+    /** v1.15.0 — سياسة قنوات يوتيوب المسموحة (تسبق القائمة البيضاء وتمنع التجاوز عبر التطبيق الرسمي). */
+    val youtubeChannelPolicy: YoutubeChannelPolicy? = null
 ) {
 
     fun validate(
@@ -94,6 +97,25 @@ class SecurityEngine(
         rawUrl: String?,
         depth: Int
     ): NavigationDecision {
+        // v1.15.0 — منع الهروب لتطبيق يوتيوب الرسمي عند تفعيل وضع القنوات المسموحة
+        val youtubeStrict = youtubeChannelPolicy?.isActive() == true && !policyManager.temporaryAccess.isActive()
+        if (youtubeStrict) {
+            val scheme = parsed.scheme.lowercase()
+            if (scheme == "vnd.youtube" || scheme == "youtube") {
+                return NavigationDecision.Block(
+                    BlockReason.YOUTUBE_CHANNEL_NOT_ALLOWED,
+                    "youtube_external_scheme_blocked:$scheme",
+                    rawUrl
+                )
+            }
+            if (scheme == "intent" && ExternalAppPolicy.isYoutubeIntent(parsed.raw)) {
+                return NavigationDecision.Block(
+                    BlockReason.YOUTUBE_CHANNEL_NOT_ALLOWED,
+                    "youtube_external_intent_blocked",
+                    rawUrl
+                )
+            }
+        }
         if (parsed.scheme != "intent") {
             return NavigationDecision.OpenExternal(parsed.scheme, parsed.opaquePart ?: rawUrl.orEmpty())
         }
@@ -118,12 +140,14 @@ class SecurityEngine(
                 NavigationDecision.Block(BlockReason.UNSAFE_SCHEME, "video_players_disabled", rawUrl)
             }
         }
-        // 3) fallback مسموح بالقائمة → فتح (السلوك القديم محفوظ لـ intent مجهول الوجهة)
+        // 3) تحقق من fallback (التنقل عند غياب التطبيق) — قد يخصم السماح من هنا
         val fallback = ExternalAppPolicy.intentFallbackUrl(raw)
         if (fallback != null) {
             return when (val fbDecision = validate(fallback, NavigationType.REDIRECT, depth + 1)) {
                 is NavigationDecision.Allow ->
                     NavigationDecision.OpenExternal("intent", rawUrl.orEmpty())
+                is NavigationDecision.PendingVerification ->
+                    NavigationDecision.Block(BlockReason.NOT_WHITELISTED, "intent_pending_fallback", rawUrl)
                 is NavigationDecision.Block -> fbDecision
                 is NavigationDecision.OpenExternal -> fbDecision
             }
@@ -159,6 +183,15 @@ class SecurityEngine(
                 rawUrl
             )
         }
+
+        // 4.3) وضع قنوات يوتيوب المسموحة (v1.15.0):
+        // يسبق القائمة البيضاء العامة صراحةً؛ فلو وُجد youtube.com في القائمة البيضاء
+        // سابقًا لا يتجاوز قيد القنوات. أما إن كان رابط يوتيوب تابعًا لقناة مسموحة
+        // فيُسمح له حتى لو لم يُضف youtube.com للقائمة البيضاء العامة.
+        youtubeChannelPolicy?.evaluate(
+            parsed = parsed,
+            nonYoutubeRedirectValidator = { targetUrl -> validate(targetUrl, NavigationType.REDIRECT, 1) }
+        )?.let { return it }
 
         // 4.5) الشبكة المحلية (v1.9.0 — طلب المستخدم الصريح):
         // روابط الراوتر/NAS/الأجهزة المنزلية (192.168.*، 10.*، 172.16-31.*،

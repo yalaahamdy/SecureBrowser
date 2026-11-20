@@ -16,7 +16,7 @@ import org.json.JSONObject
  */
 class TabsManager(private val factory: (Long) -> WebView) {
 
-    private val tabList = mutableListOf<TabSession>()
+    private val tabList = java.util.concurrent.CopyOnWriteArrayList<TabSession>()
 
     val tabs: List<TabSession> get() = tabList.toList()
 
@@ -81,7 +81,8 @@ class TabsManager(private val factory: (Long) -> WebView) {
     fun closeTab(id: Long) {
         val index = tabList.indexOfFirst { it.id == id }
         if (index < 0) return
-        val closing = tabList.removeAt(index)
+        val closing = tabList[index]
+        tabList.remove(closing)
         closing.webView.stopLoading()
         closing.releasePreview()
         closing.webView.destroy()

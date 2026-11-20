@@ -116,6 +116,19 @@ class SettingsRepository(
      */
     val blockSearchEngine: Boolean get() = bool("block_search_engine", false)
 
+    /**
+     * v1.15.0 — وضع قنوات يوتيوب المسموحة (Hardened YouTube Channel Whitelist):
+     * عند التفعيل: تُفتح القنوات المسموحة وفيديوهاتها فقط، ويُحظر باقي يوتيوب بالكامل
+     * (حتى لو أُضيف youtube.com سابقًا في القائمة البيضاء العامة).
+     */
+    val youtubeChannelMode: Boolean get() = bool("youtube_channel_mode", false)
+
+    /** حظر مقاطع Shorts حتى داخل القنوات المسموحة (اختياري للوالد — الافتراضي مفعّل). */
+    val youtubeBlockShorts: Boolean get() = bool("youtube_block_shorts", true)
+
+    /** إخفاء قسم التعليقات في صفحات فيديوهات يوتيوب. */
+    val youtubeHideComments: Boolean get() = bool("youtube_hide_comments", true)
+
     companion object {
         const val MIN_ZOOM = 50
         const val MAX_ZOOM = 200

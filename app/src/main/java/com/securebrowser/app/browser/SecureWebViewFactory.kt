@@ -49,6 +49,9 @@ object SecureWebViewFactory {
         webView.webViewClient = SecureWebViewClient(tabId, controller)
         webView.webChromeClient = SecureWebChromeClient(tabId, controller)
 
+        // v1.15.0 — حارس قنوات يوتيوب المدمج (DocumentStart + @JavascriptInterface)
+        YoutubeWebViewGuard.attach(webView, { controller.tabSession(tabId) }, controller)
+
         // التنزيلات عبر مدير التنزيلات (سياسة كاملة + مراقبة)
         attachDownloadListener(webView, controller)
 

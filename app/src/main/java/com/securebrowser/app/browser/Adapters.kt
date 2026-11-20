@@ -319,3 +319,33 @@ class StartSitesAdapter(
         b.root.setOnLongClickListener { onRemove(rule); true }
     }
 }
+
+/**
+ * شبكة قنوات يوتيوب المسموحة في صفحة البداية (v1.15.0) —
+ * دخول بنقرة واحدة إلى `m.youtube.com/channel/UC...` مع حظر كل ما عدا القنوات المسموحة.
+ */
+class StartYoutubeChannelsAdapter(
+    private val channels: List<com.securebrowser.app.data.db.entity.YoutubeChannelEntity>,
+    private val onOpen: (com.securebrowser.app.data.db.entity.YoutubeChannelEntity) -> Unit
+) : RecyclerView.Adapter<StartYoutubeChannelsAdapter.Holder>() {
+
+    class Holder(val binding: ItemSiteCardBinding) : RecyclerView.ViewHolder(binding.root)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
+        Holder(ItemSiteCardBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+
+    override fun getItemCount(): Int = channels.size
+
+    override fun onBindViewHolder(holder: Holder, position: Int) {
+        val ch = channels[position]
+        val b = holder.binding
+        b.siteHost.text = ch.title
+        val letter = ch.title.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "Y"
+        b.siteLetter.text = letter
+        b.siteLetter.isVisible = true
+        b.siteIcon.isVisible = true
+        b.siteIcon.setImageResource(R.drawable.ic_play)
+        b.siteIcon.alpha = 0.25f
+        b.root.setOnClickListener { onOpen(ch) }
+    }
+}

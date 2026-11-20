@@ -489,4 +489,32 @@
     <string name="notif_download_in_progress">Downloading (%1$d%%)</string>
     <string name="notif_download_completed">Download complete — Tap to view</string>
     <string name="notif_download_failed">Download failed</string>
+
+    <!-- v1.15.0: Hardened YouTube Channel Whitelist -->
+    <string name="card_youtube_channels">YouTube Channels Mode</string>
+    <string name="card_youtube_channels_sub">Allow specific YouTube channels only and block all other videos</string>
+    <string name="status_youtube_channels">YouTube Channels</string>
+    <string name="youtube_channels_title">Allowed YouTube Channels</string>
+    <string name="youtube_mode_toggle">Restrict YouTube to allowed channels only</string>
+    <string name="youtube_mode_desc">Only videos belonging to the channels below can be played. Home, search, suggestions, and other channels are strictly blocked.</string>
+    <string name="youtube_block_shorts_toggle">Block Shorts even on allowed channels</string>
+    <string name="youtube_hide_comments_toggle">Hide comments on YouTube videos</string>
+    <string name="youtube_general_whitelist_warn">Note: YouTube is currently in your general Website Whitelist (%1$s). Channel-Only Mode overrides it, or you can remove it from the general whitelist for clarity.</string>
+    <string name="youtube_remove_general_whitelist">Remove from general whitelist</string>
+    <string name="youtube_add_channel_hint">Paste channel link, @handle, or any video link…</string>
+    <string name="youtube_btn_add_channel">Add Channel</string>
+    <string name="youtube_resolving_channel">Verifying channel info…</string>
+    <string name="youtube_confirm_add_title">Confirm Allowed Channel</string>
+    <string name="youtube_confirm_add_message">Allow all videos from:\n\n%1$s\n(%2$s)</string>
+    <string name="youtube_channel_added">Channel added: %1$s</string>
+    <string name="youtube_channel_resolve_failed">Could not identify a YouTube channel from that link. Check the link and your connection.</string>
+    <string name="youtube_channel_empty">No YouTube channels added yet. Paste a channel or video link above to add one.</string>
+    <string name="youtube_channel_delete_confirm">Remove \"%1$s\" from allowed YouTube channels?</string>
+    <string name="youtube_channel_open">Open channel</string>
+    <string name="youtube_channel_disabled_badge">Paused</string>
+    <string name="start_youtube_channels_count">Allowed YouTube channels: %1$d</string>
+    <string name="block_youtube_message">This video or YouTube page is not from an allowed channel.</string>
+    <string name="block_btn_add_youtube_channel">Allow this channel (Parent)</string>
+    <string name="backup_count_youtube">YouTube channels: %1$d channels</string>
+    <string name="backup_res_youtube">+%1$d YouTube channels</string>
 </resources>
