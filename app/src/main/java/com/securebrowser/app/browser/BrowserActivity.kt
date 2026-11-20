@@ -124,6 +124,9 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             },
             fallbackValidator = { url ->
                 securityEngine.validate(url, NavigationType.LINK) is NavigationDecision.Allow
+            },
+            onYoutubeAllowInBrowser = { url ->
+                handleYoutubeOpenInBrowserRequest(url)
             }
         )
 
@@ -686,7 +689,7 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         blockBinding.blockSubtitle.setText(
             if (isYoutubeBlock) R.string.block_youtube_message else R.string.block_message
         )
-        val canAddChannelFromBlock = isYoutubeBlock && !rawUrl.isNullOrBlank() &&
+        val isYoutubeUrlTarget = !rawUrl.isNullOrBlank() &&
             when (com.securebrowser.app.security.youtube.YoutubeUrlParser.classifyRaw(rawUrl)) {
                 is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.Video,
                 is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.ChannelById,
@@ -694,10 +697,12 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                 is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.LegacyChannelPath -> true
                 else -> false
             }
+        val canAddChannelFromBlock = isYoutubeUrlTarget &&
+            (isYoutubeBlock || reason == BlockReason.NOT_WHITELISTED || reason == null)
         blockBinding.btnBlockAddYoutubeChannel.isVisible = canAddChannelFromBlock
         if (canAddChannelFromBlock && !rawUrl.isNullOrBlank()) {
             blockBinding.btnBlockAddYoutubeChannel.setOnClickListener {
-                promptAddBlockedYoutubeChannel(rawUrl)
+                promptAddBlockedYoutubeChannel(rawUrl, autoEnableChannelMode = true)
             }
         }
 
@@ -1602,6 +1607,13 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
 
     fun syncAddressBarForDialog() = syncAddressBar()
 
+    fun menuAnchorView(): View = binding.btnMenu
+
+    fun siteInfoAnchorView(): View = binding.btnSiteInfo
+
+    fun promptAddYoutubeChannelFromDialog(rawUrl: String) =
+        promptAddBlockedYoutubeChannel(rawUrl, autoEnableChannelMode = true)
+
     override fun currentSourceUrl(): String? = currentTabUrl()
 
     /**
@@ -1761,7 +1773,22 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         }
     }
 
-    private fun promptAddBlockedYoutubeChannel(rawUrl: String) {
+    private fun handleYoutubeOpenInBrowserRequest(rawUrl: String) {
+        val ytTarget = com.securebrowser.app.security.youtube.YoutubeUrlParser.classifyRaw(rawUrl)
+        val canResolveAsChannelOrVideo =
+            ytTarget is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.Video ||
+            ytTarget is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.ChannelById ||
+            ytTarget is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.ChannelByHandle ||
+            ytTarget is com.securebrowser.app.security.youtube.YoutubeUrlParser.Target.LegacyChannelPath
+        if (canResolveAsChannelOrVideo) {
+            promptAddBlockedYoutubeChannel(rawUrl, autoEnableChannelMode = true)
+        } else {
+            // مثل youtube.com/ الرئيسية: نعرض شاشة الحظر أو خيار إدارة القنوات للوالدين
+            showErrorBlockScreen(rawUrl, "youtube.com", BlockReason.YOUTUBE_CHANNEL_NOT_ALLOWED)
+        }
+    }
+
+    private fun promptAddBlockedYoutubeChannel(rawUrl: String, autoEnableChannelMode: Boolean = false) {
         com.securebrowser.app.ui.PinGate.show(this) {
             lifecycleScope.launch {
                 val res = ServiceLocator.youtubeChannelVerifier.resolveChannelFromInput(rawUrl)
@@ -1793,6 +1820,9 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                                         avatarUrl = info.avatarUrl,
                                         enabled = true
                                     )
+                                    if (autoEnableChannelMode && !ServiceLocator.settingsRepository.youtubeChannelMode) {
+                                        ServiceLocator.settingsRepository.putBool("youtube_channel_mode", true)
+                                    }
                                     Toast.makeText(
                                         this@BrowserActivity,
                                         getString(R.string.youtube_channel_added, info.title),

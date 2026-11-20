@@ -22,7 +22,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SimpleItemAnimator
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
@@ -31,6 +30,7 @@ import com.securebrowser.app.browser.BrowserDownloadManager
 import com.securebrowser.app.data.db.entity.DownloadRecordEntity
 import com.securebrowser.app.data.repository.DownloadRepository
 import com.securebrowser.app.databinding.ActivityDownloadsBinding
+import com.securebrowser.app.databinding.DialogActionsListBinding
 import com.securebrowser.app.databinding.ItemDownloadRowBinding
 import com.securebrowser.app.databinding.ItemMenuRowBinding
 import com.securebrowser.app.di.ServiceLocator
@@ -495,49 +495,29 @@ class DownloadsAdapter(
 }
 
 /**
- * لوحة الإجراءات الكاملة للتنزيل (v1.13.0) — مبنية بأسلوب صفوف القوائم الاحترافية الموحد.
+ * حوار الإجراءات الكاملة للتنزيل (v1.15.1) — نافذة إجراءات عصرية وسط الشاشة بدل القائمة السفلية.
  */
 object DownloadActionsSheet {
 
     fun show(activity: AppCompatActivity, download: DownloadRecordEntity) {
         val manager = ServiceLocator.downloadManager
-        val sheet = BottomSheetDialog(activity)
-        val container = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, 4, 0, 18)
-        }
+        val actionsBinding = DialogActionsListBinding.inflate(activity.layoutInflater)
+        actionsBinding.actionsHeaderTitle.text = download.fileName
 
-        val d = activity.resources.displayMetrics.density
-        val handle = android.view.View(activity).apply {
-            setBackgroundResource(R.drawable.bg_drag_handle)
-            layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (4 * d).toInt()).apply {
-                gravity = android.view.Gravity.CENTER_HORIZONTAL
-                topMargin = (8 * d).toInt()
-                bottomMargin = (10 * d).toInt()
-            }
-        }
-        container.addView(handle)
-
-        val pad = (18 * d).toInt()
-        val headerTitle = TextView(activity).apply {
-            text = download.fileName
-            setPadding(pad, 0, pad, pad / 3)
-            textSize = 16f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            maxLines = 2
-            ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
-        }
-        container.addView(headerTitle)
+        val dialog = MaterialAlertDialogBuilder(activity)
+            .setView(actionsBinding.root)
+            .setNegativeButton(R.string.close, null)
+            .create()
 
         fun addRow(iconRes: Int, label: String, onClick: () -> Unit) {
-            val row = ItemMenuRowBinding.inflate(activity.layoutInflater, container, false)
+            val row = ItemMenuRowBinding.inflate(activity.layoutInflater, actionsBinding.actionsContainer, false)
             row.rowIcon.setImageResource(iconRes)
             row.rowText.text = label
             row.root.setOnClickListener {
-                sheet.dismiss()
+                dialog.dismiss()
                 onClick()
             }
-            container.addView(row.root)
+            actionsBinding.actionsContainer.addView(row.root)
         }
 
         when (download.state) {
@@ -613,8 +593,7 @@ object DownloadActionsSheet {
             }
         }
 
-        sheet.setContentView(container)
-        sheet.show()
+        dialog.show()
     }
 
     private fun showRenameDialog(activity: AppCompatActivity, download: DownloadRecordEntity) {

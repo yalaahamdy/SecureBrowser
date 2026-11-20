@@ -517,4 +517,10 @@
     <string name="block_btn_add_youtube_channel">السماح بهذه القناة (للوالدين)</string>
     <string name="backup_count_youtube">قنوات يوتيوب: %1$d قناة</string>
     <string name="backup_res_youtube">+%1$d قناة يوتيوب</string>
+
+    <!-- v1.15.1: نظام القوائم العائمة العصرية وفتح يوتيوب داخل المتصفح -->
+    <string name="external_open_in_browser">فتح في المتصفح</string>
+    <string name="menu_youtube_channels">قنوات يوتيوب المسموحة</string>
+    <string name="site_info_youtube_mode">محمي عبر وضع قنوات يوتيوب المسموحة</string>
+    <string name="quick_history_search_hint">تصفية السجل…</string>
 </resources>

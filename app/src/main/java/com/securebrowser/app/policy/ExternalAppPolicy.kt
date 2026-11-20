@@ -213,4 +213,36 @@ object ExternalAppPolicy {
 
     /** هل المخطط يفتح تطبيقًا خارجيًا (يمر عبر بوابة الوالدين + تأكيد)؟ */
     fun isExternalAppScheme(scheme: String): Boolean = kindForScheme(scheme) != null
+
+    /**
+     * استخراج رابط ويب مكافئ (`https://...`) من مخطط تطبيق خارجي أو `intent:` عند رفض المستخدم
+     * الخروج للتطبيق الرئيسي والرغبة في فتح الرابط داخل المتصفح (يمر عبر SecurityEngine).
+     */
+    fun webFallbackForAppUri(scheme: String, target: String): String? {
+        val s = scheme.lowercase()
+        if (s == "intent") {
+            intentFallbackUrl(target)?.let { return it }
+            // أحيانًا يأتي intent://www.youtube.com/watch?v=...#Intent;scheme=https;...
+            val innerScheme = intentInnerScheme(target)
+            if ((innerScheme == "http" || innerScheme == "https") && target.startsWith("intent://", true)) {
+                val body = target.substringAfter("intent://").substringBefore("#Intent;")
+                if (body.isNotBlank()) return "$innerScheme://$body"
+            }
+            return null
+        }
+        if (s == "vnd.youtube" || s == "youtube") {
+            val cleaned = target.trim().removePrefix("//").trimStart('/')
+            if (cleaned.isBlank()) return null
+            return when {
+                cleaned.startsWith("watch", true) ||
+                    cleaned.startsWith("channel/", true) ||
+                    cleaned.startsWith("shorts/", true) ||
+                    cleaned.startsWith("@") -> "https://www.youtube.com/$cleaned"
+                cleaned.matches(Regex("""^[A-Za-z0-9_-]{11}(\?.*)?$""")) ->
+                    "https://www.youtube.com/watch?v=$cleaned"
+                else -> "https://www.youtube.com/$cleaned"
+            }
+        }
+        return null
+    }
 }

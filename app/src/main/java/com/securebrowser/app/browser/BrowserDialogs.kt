@@ -1,103 +1,106 @@
 package com.securebrowser.app.browser
 
 import android.app.AlertDialog
-import android.view.LayoutInflater
-import android.view.View
+import android.app.Dialog
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.Gravity
+import android.view.ViewGroup
+import android.view.Window
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.securebrowser.app.R
 import com.securebrowser.app.core.url.NormalizeResult
 import com.securebrowser.app.core.url.UrlNormalizer
 import com.securebrowser.app.data.repository.AddOption
 import com.securebrowser.app.data.repository.SettingsRepository
+import com.securebrowser.app.databinding.DialogActionsListBinding
 import com.securebrowser.app.databinding.DialogAddWhitelistBinding
 import com.securebrowser.app.databinding.DialogInstallShortcutBinding
+import com.securebrowser.app.databinding.DialogQuickHistoryBinding
+import com.securebrowser.app.databinding.DialogTabsSwitcherBinding
 import com.securebrowser.app.databinding.ItemMenuRowBinding
-import com.securebrowser.app.databinding.ItemTabCardBinding
-import com.securebrowser.app.databinding.SheetSiteInfoBinding
-import com.securebrowser.app.databinding.SheetTabsBinding
+import com.securebrowser.app.databinding.PopupBrowserMenuBinding
+import com.securebrowser.app.databinding.PopupSiteInfoBinding
 import com.securebrowser.app.di.ServiceLocator
 import com.securebrowser.app.parental.ParentalActivity
-import com.securebrowser.app.ui.FaviconLoader
+import com.securebrowser.app.parental.YoutubeChannelsActivity
 import com.securebrowser.app.security.whitelist.RuleType
 import com.securebrowser.app.security.whitelist.SubdomainPolicy
+import com.securebrowser.app.security.youtube.YoutubeUrlParser
+import com.securebrowser.app.ui.FaviconLoader
 import com.securebrowser.app.ui.PinGate
 import kotlinx.coroutines.launch
 
 /**
- * قوائم وحوارات المتصفح — مرحلة 2 (Bottom Sheets بأسلوب Mobile-first).
- * كل الوظائف هنا تنفّذ قرارات أمنية جاهزة ولا تقرر الأمن بنفسها.
+ * قوائم وحوارات المتصفح العصرية (v1.15.1):
+ * - قائمة المتصفح ومعلومات الموقع: بطاقات منبثقة عائمة مرتبطة بأزرار الشريط العلوي (Popover Cards).
+ * - لوحة التبويبات: نافذة عائمة واسعة بملء مريح ومعاينات فورية.
+ * - السجل السريع وإجراءات العناصر: حوارات وسطية نظيفة مع بحث فوري وبدون قوائم سفلية مزعجة.
  */
 
-/** الصف الواحد في القوائم/اللوحات. */
+/** الصف الواحد في القوائم. */
 data class MenuRow(
     val iconRes: Int,
     val text: String,
     val value: String? = null,
+    val isDanger: Boolean = false,
     val onClick: () -> Unit
 )
 
-private fun createSheetDragHandle(activity: BrowserActivity): View {
-    val d = activity.resources.displayMetrics.density
-    return View(activity).apply {
-        setBackgroundResource(R.drawable.bg_drag_handle)
-        layoutParams = LinearLayout.LayoutParams((36 * d).toInt(), (4 * d).toInt()).apply {
-            gravity = android.view.Gravity.CENTER_HORIZONTAL
-            topMargin = (8 * d).toInt()
-            bottomMargin = (10 * d).toInt()
-        }
-    }
-}
+private fun dpToPx(activity: BrowserActivity, dp: Int): Int =
+    (dp * activity.resources.displayMetrics.density).toInt()
 
-private fun buildMenuDialog(
-    activity: BrowserActivity,
-    title: String?,
-    rows: List<MenuRow>
-): BottomSheetDialog {
-    val container = LinearLayout(activity).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(0, 2, 0, 16)
-    }
-    container.addView(createSheetDragHandle(activity))
-    if (title != null) {
-        val titleView = android.widget.TextView(activity).apply {
-            text = title
-            val pad = (18 * activity.resources.displayMetrics.density).toInt()
-            setPadding(pad, pad / 3, pad, pad / 2)
-            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 17f)
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-        }
-        container.addView(titleView)
-    }
-    val sheet = BottomSheetDialog(activity)
-    for (row in rows) {
-        val binding = ItemMenuRowBinding.inflate(activity.layoutInflater, container, false)
-        binding.rowIcon.setImageResource(row.iconRes)
-        binding.rowText.text = row.text
-        if (row.value != null) {
-            binding.rowValue.isVisible = true
-            binding.rowValue.text = row.value
-        }
-        binding.root.setOnClickListener {
-            sheet.dismiss()
-            row.onClick()
-        }
-        container.addView(binding.root)
-    }
-    sheet.setContentView(container)
-    return sheet
-}
-
-/** القائمة الرئيسية للمتصفح — الوظائف الثانوية كلها هنا لا على الشاشة. */
+/** القائمة الرئيسية العائمة للمتصفح — تنبثق مباشرة أسفل زر القائمة في الشريط العلوي. */
 fun BrowserActivity.showBrowserMenu() {
+    val binding = PopupBrowserMenuBinding.inflate(layoutInflater)
+    val maxPopupHeight = (resources.displayMetrics.heightPixels * 0.80f).toInt()
+    val popup = PopupWindow(
+        binding.root,
+        dpToPx(this, 304),
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        true
+    ).apply {
+        isOutsideTouchable = true
+        setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        elevation = dpToPx(this@showBrowserMenu, 10).toFloat()
+        animationStyle = android.R.style.Animation_Dialog
+    }
+
+    // شريط الاختصارات العلوية السريعة
+    binding.qaNewTab.setOnClickListener { popup.dismiss(); onNewTabRequested() }
+    binding.qaFind.setOnClickListener { popup.dismiss(); startFindInPage() }
+    binding.qaShare.setOnClickListener { popup.dismiss(); sharePage() }
+    binding.qaSiteInfo.setOnClickListener { popup.dismiss(); showSiteInfo() }
+
+    // شريط التكبير الحي المدمج (تعديل فوري دون إغلاق القائمة)
+    fun refreshZoomLabel() {
+        binding.txtZoomValue.text = "${ServiceLocator.settingsRepository.zoom}%"
+    }
+    refreshZoomLabel()
+    binding.btnZoomInInline.setOnClickListener {
+        changeZoom(+10)
+        refreshZoomLabel()
+    }
+    binding.btnZoomOutInline.setOnClickListener {
+        changeZoom(-10)
+        refreshZoomLabel()
+    }
+    binding.txtZoomValue.setOnClickListener {
+        changeZoom(reset = true)
+        refreshZoomLabel()
+    }
+
+    // بناء الإجراءات الثانوية النظيفة
     val rows = mutableListOf<MenuRow>()
     val temp = ServiceLocator.temporaryAccess
     if (temp.isActive()) {
@@ -107,11 +110,8 @@ fun BrowserActivity.showBrowserMenu() {
             }
         )
     }
-    rows.add(MenuRow(R.drawable.ic_add, getString(R.string.menu_new_tab)) { onNewTabRequested() })
-    rows.add(MenuRow(R.drawable.ic_search, getString(R.string.menu_find)) { startFindInPage() })
-    // v1.9.0 — قارئ QR المدمج (روابط/نصوص بحث من الكاميرا مباشرة)
     rows.add(MenuRow(R.drawable.ic_qr, getString(R.string.menu_scan_qr)) { openQrScanner() })
-    // v1.10.0 — تثبيت الموقع كتطبيق على الشاشة الرئيسية
+
     val currentUrl = currentTabUrl()
     if (WebShortcutManager.canPinUrl(currentUrl)) {
         rows.add(
@@ -120,11 +120,15 @@ fun BrowserActivity.showBrowserMenu() {
             }
         )
     }
-    rows.add(MenuRow(R.drawable.ic_globe, getString(R.string.menu_zoom)) { showZoomMenu() })
-    rows.add(MenuRow(R.drawable.ic_share, getString(R.string.menu_share)) { sharePage() })
     rows.add(MenuRow(R.drawable.ic_download, getString(R.string.menu_downloads)) { openDownloads() })
     rows.add(MenuRow(R.drawable.ic_history, getString(R.string.menu_history)) { showQuickHistory() })
-    rows.add(MenuRow(R.drawable.ic_info, getString(R.string.menu_site_info)) { showSiteInfo() })
+    rows.add(
+        MenuRow(R.drawable.ic_play, getString(R.string.menu_youtube_channels)) {
+            PinGate.show(this) {
+                startActivity(android.content.Intent(this, YoutubeChannelsActivity::class.java))
+            }
+        }
+    )
     rows.add(
         MenuRow(R.drawable.ic_shield_check, getString(R.string.menu_add_whitelist)) {
             val url = currentTabUrl() ?: return@MenuRow
@@ -133,41 +137,66 @@ fun BrowserActivity.showBrowserMenu() {
     )
     rows.add(MenuRow(R.drawable.ic_gear, getString(R.string.menu_settings)) { openChildSettings() })
     rows.add(MenuRow(R.drawable.ic_key, getString(R.string.menu_parental)) { showParentalDashboard() })
-    rows.add(MenuRow(R.drawable.ic_close, getString(R.string.menu_exit)) { finishAffinity() })
-    buildMenuDialog(this, null, rows).show()
+    rows.add(MenuRow(R.drawable.ic_close, getString(R.string.menu_exit), isDanger = true) { finishAffinity() })
+
+    for (row in rows) {
+        val item = ItemMenuRowBinding.inflate(layoutInflater, binding.menuItemsContainer, false)
+        item.rowIcon.setImageResource(row.iconRes)
+        item.rowText.text = row.text
+        if (row.isDanger) {
+            val errColor = com.google.android.material.color.MaterialColors.getColor(
+                item.root,
+                androidx.appcompat.R.attr.colorError
+            )
+            item.rowIcon.setColorFilter(errColor)
+            item.rowText.setTextColor(errColor)
+        }
+        if (row.value != null) {
+            item.rowValue.isVisible = true
+            item.rowValue.text = row.value
+        }
+        item.root.setOnClickListener {
+            popup.dismiss()
+            row.onClick()
+        }
+        binding.menuItemsContainer.addView(item.root)
+    }
+
+    binding.root.measure(
+        android.view.View.MeasureSpec.makeMeasureSpec(dpToPx(this, 304), android.view.View.MeasureSpec.EXACTLY),
+        android.view.View.MeasureSpec.makeMeasureSpec(maxPopupHeight, android.view.View.MeasureSpec.AT_MOST)
+    )
+    if (binding.root.measuredHeight > maxPopupHeight) {
+        popup.height = maxPopupHeight
+    }
+
+    val anchor = menuAnchorView()
+    popup.showAsDropDown(anchor, 0, dpToPx(this, 4), Gravity.END)
 }
 
-/** قائمة التكبير — أزرار التكبير تعيش هنا لا أمام المستخدم دائمًا (§17). */
+/** قائمة التكبير السريعة — لم تعد تُستدعى منفصلة لأن شريط التكبير مدمج حيًا في القائمة، لكن تبقى متاحة إن استُدعيت. */
 fun BrowserActivity.showZoomMenu() {
-    val settings = ServiceLocator.settingsRepository
-    val current = settings.zoom
-    val rows = listOf(
-        MenuRow(R.drawable.ic_zoom_in, getString(R.string.menu_zoom_in), "$current%") {
-            changeZoom(+10)
-        },
-        MenuRow(R.drawable.ic_zoom_out, getString(R.string.menu_zoom_out), null) {
-            changeZoom(-10)
-        },
-        MenuRow(R.drawable.ic_reload, getString(R.string.menu_zoom_reset), null) {
-            changeZoom(reset = true)
-        }
-    )
-    buildMenuDialog(this, getString(R.string.menu_zoom), rows).show()
+    showBrowserMenu()
 }
 
 /**
- * لوحة التبويبات الاحترافية (v1.5.0) — حية تمامًا (§5):
- * - **تحديث فوري:** اللوحة مسجلة كمستمع على TabsManager ما دامت مفتوحة —
- *   إغلاق/إضافة/تبديل أي تبويب ينعكس على الشبكة والعدّاد لحظيًا بلا إغلاق
- *   اللوحة وإعادة فتحها (كانت تلتقط لقطة ثابتة في v1.4.0).
- * - **معاينات احترافية:** عند الفتح يُلتقط النشط فورًا ثم بقية التبويبات
- *   تدريجيًا بخطوات صغيرة (بلا تجميد الإطار) — كل بطاقة تُحدث وحدها.
- * - **إزالة متحركة:** إغلاق بطاقة ينزلق بأنيميشن عبر notifyItemRemoved.
+ * لوحة التبويبات الحديثة (v1.15.1) — نافذة بطاقات عائمة رحبة بإدارة فورية وبلا BottomSheet.
  */
 fun BrowserActivity.showTabsSheet() {
-    val sheet = BottomSheetDialog(this)
-    val binding = SheetTabsBinding.inflate(layoutInflater)
-    sheet.setContentView(binding.root)
+    val dialog = Dialog(this)
+    dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+    val binding = DialogTabsSwitcherBinding.inflate(layoutInflater)
+    dialog.setContentView(binding.root)
+
+    val dm = resources.displayMetrics
+    dialog.window?.apply {
+        setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        setLayout(
+            (dm.widthPixels * 0.94f).toInt(),
+            (dm.heightPixels * 0.80f).toInt()
+        )
+        setWindowAnimations(android.R.style.Animation_Dialog)
+    }
 
     val adapter = TabsGridAdapter(
         tabsProvider = { tabsManager().tabs },
@@ -177,11 +206,9 @@ fun BrowserActivity.showTabsSheet() {
             tabsManager().switchTo(tabId)
             attachActiveTabForDialog()
             syncAddressBarForDialog()
-            sheet.dismiss()
+            dialog.dismiss()
         },
         onClose = { tabId ->
-            // الإغلاق عبر المدير — المستمع الحي المُسجل أدناه يزامن الشبكة
-            // والعدّاد فورًا (قبل v1.5.0 كانت اللقطة القديمة تبقى معروضة)
             tabsManager().closeTab(tabId)
             attachActiveTabForDialog()
             syncAddressBarForDialog()
@@ -195,25 +222,24 @@ fun BrowserActivity.showTabsSheet() {
     }
     refreshHeader()
 
-    // مستمع حي: كل تغيير في التبويبات أثناء فتح اللوحة يظهر لحظيًا
     val liveListener = tabsManager().addOnTabsChangedListener {
         adapter.sync()
         refreshHeader()
     }
 
+    binding.btnCloseTabs.setOnClickListener { dialog.dismiss() }
     binding.btnNewTab.setOnClickListener {
-        sheet.dismiss()
+        dialog.dismiss()
         onNewTabRequested()
     }
-    sheet.setOnDismissListener {
+    dialog.setOnDismissListener {
         tabsManager().removeOnTabsChangedListener(liveListener)
     }
-    // التقاط معاينة التبويب النشط الظاهر فقط (التبويبات الخلفية تحتفظ بآخر معاينة التُقطت عند مغادرتها)
     tabsManager().activeTab?.capturePreview()
-    sheet.show()
+    dialog.show()
 }
 
-/** معلومات الموقع — بسيطة وواضحة (§23). */
+/** بطاقة معلومات الموقع المنسدلة أسفل أيقونة الدرع في الشريط العلوي. */
 fun BrowserActivity.showSiteInfo() {
     val raw = currentTabUrl()
     if (raw.isNullOrBlank()) {
@@ -222,11 +248,20 @@ fun BrowserActivity.showSiteInfo() {
     }
     lifecycleScope.launch {
         ServiceLocator.whiteListEngine.refresh()
-        val parsed = com.securebrowser.app.core.url.UrlNormalizer.normalize(raw)
-        val url = (parsed as? com.securebrowser.app.core.url.NormalizeResult.Success)?.url
-        val sheet = BottomSheetDialog(this@showSiteInfo)
-        val infoBinding = SheetSiteInfoBinding.inflate(layoutInflater)
-        sheet.setContentView(infoBinding.root)
+        val parsed = UrlNormalizer.normalize(raw)
+        val url = (parsed as? NormalizeResult.Success)?.url
+        val infoBinding = PopupSiteInfoBinding.inflate(layoutInflater)
+        val popup = PopupWindow(
+            infoBinding.root,
+            dpToPx(this@showSiteInfo, 308),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            isOutsideTouchable = true
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            elevation = dpToPx(this@showSiteInfo, 10).toFloat()
+            animationStyle = android.R.style.Animation_Dialog
+        }
 
         infoBinding.siteSecurity.text =
             if (url?.scheme == "https") getString(R.string.site_info_https)
@@ -235,21 +270,55 @@ fun BrowserActivity.showSiteInfo() {
 
         val rule = url?.let { ServiceLocator.whiteListEngine.firstMatch(it) }
         val tempActive = ServiceLocator.temporaryAccess.isActive()
+        val isYt = url != null && YoutubeUrlParser.isYoutubeHost(url.host)
+        val ytMode = ServiceLocator.settingsRepository.youtubeChannelMode
+
         when {
+            isYt && ytMode && !tempActive -> {
+                infoBinding.siteWhitelist.text = getString(R.string.site_info_youtube_mode)
+                infoBinding.siteRuleType.text = getString(
+                    R.string.start_youtube_channels_count,
+                    ServiceLocator.youtubeChannelRepository.enabledChannelIds().size
+                )
+                infoBinding.btnSiteQuickAction.isVisible = true
+                infoBinding.btnSiteQuickAction.setText(R.string.menu_youtube_channels)
+                infoBinding.btnSiteQuickAction.setOnClickListener {
+                    popup.dismiss()
+                    PinGate.show(this@showSiteInfo) {
+                        startActivity(android.content.Intent(this@showSiteInfo, YoutubeChannelsActivity::class.java))
+                    }
+                }
+            }
             rule != null -> {
                 infoBinding.siteWhitelist.text = getString(R.string.site_info_allowed)
                 infoBinding.siteRuleType.text = ruleTypeLabel(this@showSiteInfo, rule.type, rule.subdomainPolicy)
+                infoBinding.btnSiteQuickAction.isVisible = false
             }
             tempActive -> {
                 infoBinding.siteWhitelist.text = getString(R.string.site_info_temp_access)
                 infoBinding.siteRuleType.text = ""
+                infoBinding.btnSiteQuickAction.isVisible = false
             }
             else -> {
                 infoBinding.siteWhitelist.text = getString(R.string.site_info_not_allowed)
                 infoBinding.siteRuleType.text = ""
+                infoBinding.btnSiteQuickAction.isVisible = true
+                if (isYt) {
+                    infoBinding.btnSiteQuickAction.setText(R.string.block_btn_add_youtube_channel)
+                    infoBinding.btnSiteQuickAction.setOnClickListener {
+                        popup.dismiss()
+                        promptAddYoutubeChannelFromDialog(raw)
+                    }
+                } else {
+                    infoBinding.btnSiteQuickAction.setText(R.string.menu_add_whitelist)
+                    infoBinding.btnSiteQuickAction.setOnClickListener {
+                        popup.dismiss()
+                        PinGate.show(this@showSiteInfo) { showAddToWhitelistDialog(raw) }
+                    }
+                }
             }
         }
-        sheet.show()
+        popup.showAsDropDown(siteInfoAnchorView(), 0, dpToPx(this@showSiteInfo, 6), Gravity.START)
     }
 }
 
@@ -264,8 +333,8 @@ fun ruleTypeLabel(context: android.content.Context, type: RuleType, subdomains: 
 fun BrowserActivity.showAddToWhitelistDialog(rawUrl: String) {
     val binding = DialogAddWhitelistBinding.inflate(layoutInflater)
     lifecycleScope.launch {
-        val parsed = com.securebrowser.app.core.url.UrlNormalizer.normalize(rawUrl)
-        val url = (parsed as? com.securebrowser.app.core.url.NormalizeResult.Success)?.url
+        val parsed = UrlNormalizer.normalize(rawUrl)
+        val url = (parsed as? NormalizeResult.Success)?.url
         if (url == null || !url.isWeb) {
             Toast.makeText(this@showAddToWhitelistDialog, R.string.add_whitelist_error, Toast.LENGTH_SHORT).show()
             return@launch
@@ -302,62 +371,52 @@ fun BrowserActivity.showAddToWhitelistDialog(rawUrl: String) {
     }
 }
 
-/** سجل سريع للطفل (قراءة فقط — لا مسح/حذف) مع إجراءات لكل عنصر (§9-§10). */
+/** سجل التصفح السريع للطفل في حوار عصري مزود ببحث فوري وبدون BottomSheet. */
 fun BrowserActivity.showQuickHistory() {
-    val sheet = BottomSheetDialog(this)
-    val container = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(0, 2, 0, 16)
-    }
-    container.addView(createSheetDragHandle(this))
-    val title = android.widget.TextView(this).apply {
-        text = getString(R.string.history_title)
-        val pad = (18 * resources.displayMetrics.density).toInt()
-        setPadding(pad, pad / 3, pad, pad / 2)
-        setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 17f)
-        setTypeface(typeface, android.graphics.Typeface.BOLD)
-    }
-    container.addView(title)
+    val dialogBinding = DialogQuickHistoryBinding.inflate(layoutInflater)
+    val dialog = MaterialAlertDialogBuilder(this)
+        .setView(dialogBinding.root)
+        .create()
 
-    val recycler = RecyclerView(this).apply {
-        layoutManager = LinearLayoutManager(this@showQuickHistory)
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            resources.displayMetrics.heightPixels / 2
-        )
-    }
-    val emptyView = android.widget.TextView(this).apply {
-        text = getString(R.string.history_empty)
-        val pad = (24 * resources.displayMetrics.density).toInt()
-        setPadding(pad, pad, pad, pad)
-        gravity = android.view.Gravity.CENTER
-        alpha = 0.65f
-        isVisible = false
-    }
-    container.addView(recycler)
-    container.addView(emptyView)
-    sheet.setContentView(container)
-    sheet.show()
+    dialogBinding.btnCloseHistory.setOnClickListener { dialog.dismiss() }
+    dialogBinding.historyRecycler.layoutManager = LinearLayoutManager(this)
+    dialog.show()
 
     lifecycleScope.launch {
-        val entries = ServiceLocator.historyRepository.recent(100)
-        if (entries.isEmpty()) {
-            recycler.isVisible = false
-            emptyView.isVisible = true
-        } else {
-            emptyView.isVisible = false
-            recycler.isVisible = true
-            recycler.adapter = HistoryRowAdapter(
-                entries,
-                showDelete = false,
-                onOpen = { entry -> sheet.dismiss(); navigateFromExternal(entry.url, newTab = false) },
-                onMore = { entry -> sheet.dismiss(); showHistoryActions(entry.url) }
-            )
+        val allEntries = ServiceLocator.historyRepository.recent(100)
+        fun render(query: String) {
+            val filtered = if (query.isBlank()) allEntries
+            else allEntries.filter {
+                (it.title ?: "").contains(query, ignoreCase = true) ||
+                    it.url.contains(query, ignoreCase = true) ||
+                    (it.host ?: "").contains(query, ignoreCase = true)
+            }
+            if (filtered.isEmpty()) {
+                dialogBinding.historyRecycler.isVisible = false
+                dialogBinding.historyEmptyText.isVisible = true
+            } else {
+                dialogBinding.historyEmptyText.isVisible = false
+                dialogBinding.historyRecycler.isVisible = true
+                dialogBinding.historyRecycler.adapter = HistoryRowAdapter(
+                    filtered,
+                    showDelete = false,
+                    onOpen = { entry -> dialog.dismiss(); navigateFromExternal(entry.url, newTab = false) },
+                    onMore = { entry -> dialog.dismiss(); showHistoryActions(entry.url) }
+                )
+            }
         }
+        render("")
+        dialogBinding.historySearchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                render(s?.toString().orEmpty().trim())
+            }
+        })
     }
 }
 
-/** لوحة إجراءات عنصر السجل: فتح/تبويب جديد/نسخ/مشاركة/إضافة للقائمة/معلومات (§9). */
+/** حوار إجراءات عنصر السجل (بدون قائمة سفلية). */
 fun BrowserActivity.showHistoryActions(url: String) {
     val rows = mutableListOf(
         MenuRow(R.drawable.ic_open_new, getString(R.string.history_open)) {
@@ -388,15 +447,33 @@ fun BrowserActivity.showHistoryActions(url: String) {
             showSiteInfoFor(url)
         }
     )
-    buildMenuDialog(this, null, rows).show()
+
+    val actionsBinding = DialogActionsListBinding.inflate(layoutInflater)
+    actionsBinding.actionsHeaderTitle.text = url
+    val dialog = MaterialAlertDialogBuilder(this)
+        .setView(actionsBinding.root)
+        .setNegativeButton(R.string.close, null)
+        .create()
+
+    for (row in rows) {
+        val item = ItemMenuRowBinding.inflate(layoutInflater, actionsBinding.actionsContainer, false)
+        item.rowIcon.setImageResource(row.iconRes)
+        item.rowText.text = row.text
+        item.root.setOnClickListener {
+            dialog.dismiss()
+            row.onClick()
+        }
+        actionsBinding.actionsContainer.addView(item.root)
+    }
+    dialog.show()
 }
 
 /** معلومات موقع لعنوان خارج التبويب الحالي (من إجراءات السجل). */
 fun BrowserActivity.showSiteInfoFor(url: String) {
     lifecycleScope.launch {
         ServiceLocator.whiteListEngine.refresh()
-        val parsed = com.securebrowser.app.core.url.UrlNormalizer.normalize(url)
-        val infoUrl = (parsed as? com.securebrowser.app.core.url.NormalizeResult.Success)?.url
+        val parsed = UrlNormalizer.normalize(url)
+        val infoUrl = (parsed as? NormalizeResult.Success)?.url
         val rule = infoUrl?.let { ServiceLocator.whiteListEngine.firstMatch(it) }
         val message = buildString {
             append(getString(R.string.site_info_security) + ": ")
@@ -420,7 +497,7 @@ fun BrowserActivity.showSiteInfoFor(url: String) {
                 append(getString(R.string.site_info_not_allowed))
             }
         }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this@showSiteInfoFor)
+        MaterialAlertDialogBuilder(this@showSiteInfoFor)
             .setTitle(R.string.site_info_title)
             .setMessage(message)
             .setPositiveButton(R.string.ok, null)
@@ -447,10 +524,6 @@ fun BrowserActivity.openChildSettings() {
 
 /**
  * حوار تثبيت الموقع كتطبيق على الشاشة الرئيسية (v1.10.0).
- *
- * يسمح للمستخدم بتخصيص اسم التطبيق، ويعرض معاينة للأيقونة والنطاق،
- * ويوضح شارة الأمان (موقع مسموح / وصول مؤقت / غير مدرج)،
- * مع التثبيت الفعلي عبر [WebShortcutManager].
  */
 fun BrowserActivity.promptInstallShortcut(rawUrl: String, customTitle: String? = null) {
     if (!WebShortcutManager.canPinUrl(rawUrl)) {

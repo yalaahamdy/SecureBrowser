@@ -49,7 +49,9 @@ class ExternalNavigationHandler(
     /** فتح رابط احتياطي (S.browser_fallback_url) داخل المتصفح — يمر بالأمان كأي تنقل. */
     private val fallbackNavigator: ((String) -> Unit)? = null,
     /** هل الرابط الاحتياطي مسموح بالقائمة؟ (لعرض زره في حوار عدم وجود تطبيق) */
-    private val fallbackValidator: ((String) -> Boolean)? = null
+    private val fallbackValidator: ((String) -> Boolean)? = null,
+    /** فتح رابط يوتيوب داخل المتصفح بعد موافقة الوالد بدلًا من الخروج لتطبيق YouTube. */
+    private val onYoutubeAllowInBrowser: ((String) -> Unit)? = null
 ) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -107,9 +109,24 @@ class ExternalNavigationHandler(
 
         val appLabel = if (pinned) resolveAppLabel(intent)
         else resolveAppLabelOrNull(intent) ?: activity.getString(R.string.external_app_generic)
-        maybeConfirm(appLabel) {
-            launchRobust(intent, scheme, appLabel, fallbackUrlFor(target, scheme))
-        }
+        val webFallback = ExternalAppPolicy.webFallbackForAppUri(scheme, target)
+        maybeConfirm(
+            appLabel = appLabel,
+            onConfirmed = {
+                launchRobust(intent, scheme, appLabel, fallbackUrlFor(target, scheme))
+            },
+            onCancelled = {
+                if (!webFallback.isNullOrBlank() && fallbackNavigator != null) {
+                    if (fallbackValidator?.invoke(webFallback) == true) {
+                        fallbackNavigator.invoke(webFallback)
+                    } else if (scheme == "vnd.youtube" || scheme == "youtube" ||
+                        (scheme == "intent" && ExternalAppPolicy.isYoutubeIntent(target))
+                    ) {
+                        onYoutubeAllowInBrowser?.invoke(webFallback) ?: fallbackNavigator.invoke(webFallback)
+                    }
+                }
+            }
+        )
     }
 
     /**
@@ -197,10 +214,20 @@ class ExternalNavigationHandler(
             return
         }
         maybeConfirm(
-            activity.getString(R.string.external_open_in_app, suggestion.appLabel)
-        ) {
-            launchRobust(intent, suggestion.kind.name, suggestion.appLabel)
-        }
+            appLabel = activity.getString(R.string.external_open_in_app, suggestion.appLabel),
+            neutralButtonText = if (suggestion.kind == ExternalAppPolicy.AppKind.YOUTUBE && onYoutubeAllowInBrowser != null) {
+                activity.getString(R.string.external_open_in_browser)
+            } else null,
+            onNeutral = if (suggestion.kind == ExternalAppPolicy.AppKind.YOUTUBE && onYoutubeAllowInBrowser != null) {
+                { onYoutubeAllowInBrowser.invoke(suggestion.webUrl) }
+            } else null,
+            onConfirmed = {
+                launchRobust(intent, suggestion.kind.name, suggestion.appLabel)
+            },
+            onCancelled = {
+                onShowBlock()
+            }
+        )
     }
 
     // ————————————————— المساعدات —————————————————
@@ -301,7 +328,13 @@ class ExternalNavigationHandler(
     }
 
     /** بوابة التأكيد — الإعداد "external_confirm" يُدار من لوحة الوالدين. */
-    private fun maybeConfirm(appLabel: String, onConfirmed: () -> Unit) {
+    private fun maybeConfirm(
+        appLabel: String,
+        neutralButtonText: String? = null,
+        onNeutral: (() -> Unit)? = null,
+        onCancelled: (() -> Unit)? = null,
+        onConfirmed: () -> Unit
+    ) {
         if (!settings.externalConfirm) {
             onConfirmed()
             return
@@ -311,7 +344,13 @@ class ExternalNavigationHandler(
                 .setTitle(activity.getString(R.string.external_confirm_title))
                 .setMessage(activity.getString(R.string.external_confirm_message, appLabel))
                 .setPositiveButton(activity.getString(R.string.external_confirm_open)) { _, _ -> onConfirmed() }
-                .setNegativeButton(activity.getString(R.string.cancel), null)
+                .apply {
+                    if (!neutralButtonText.isNullOrBlank() && onNeutral != null) {
+                        setNeutralButton(neutralButtonText) { _, _ -> onNeutral() }
+                    }
+                }
+                .setNegativeButton(activity.getString(R.string.cancel)) { _, _ -> onCancelled?.invoke() }
+                .setOnCancelListener { onCancelled?.invoke() }
                 .show()
         }
     }

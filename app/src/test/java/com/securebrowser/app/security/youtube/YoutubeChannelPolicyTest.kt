@@ -216,6 +216,18 @@ class YoutubeChannelPolicyTest {
 
         assertNull(ExternalAppPolicy.suggestForWebUrl("https://youtube.com/watch?v=$blockedVideoId", suppressYoutubeSuggestion = true))
         assertNotNull(ExternalAppPolicy.suggestForWebUrl("https://youtube.com/watch?v=$blockedVideoId", suppressYoutubeSuggestion = false))
+
+        assertEquals(
+            "https://www.youtube.com/watch?v=$allowedVideoId",
+            ExternalAppPolicy.webFallbackForAppUri("vnd.youtube", "//$allowedVideoId")
+        )
+        assertEquals(
+            "https://www.youtube.com/watch?v=$allowedVideoId",
+            ExternalAppPolicy.webFallbackForAppUri(
+                "intent",
+                "intent://www.youtube.com/watch?v=$allowedVideoId#Intent;scheme=https;package=com.google.android.youtube;end"
+            )
+        )
     }
 
     @Test
