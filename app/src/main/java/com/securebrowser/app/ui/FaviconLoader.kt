@@ -143,4 +143,74 @@ object FaviconLoader {
             }
         }
     }
+
+    /**
+     * v1.16.0 — تحميل صورة قناة يوتيوب (avatarUrl) وقصّها دائريًا بكاش بالذاكرة والقرص.
+     */
+    fun bindCircleUrl(
+        hostView: View,
+        icon: ImageView,
+        letter: TextView?,
+        imageUrl: String?,
+        fallbackLetter: String
+    ) {
+        val owner = hostView.context as? LifecycleOwner ?: return
+        val token = imageUrl?.trim().orEmpty()
+        icon.tag = token
+        icon.isVisible = false
+        letter?.isVisible = true
+        letter?.text = fallbackLetter
+        if (!token.startsWith("http://") && !token.startsWith("https://")) return
+
+        owner.lifecycleScope.launch {
+            val bmp = loadUrlCircle(hostView.context, token)
+            if (icon.tag != token) return@launch
+            if (bmp != null) {
+                icon.isVisible = true
+                icon.setImageBitmap(bmp)
+                letter?.isVisible = false
+            }
+        }
+    }
+
+    private suspend fun loadUrlCircle(context: Context, imageUrl: String): Bitmap? {
+        val cacheKey = "avatar_${imageUrl.hashCode()}"
+        memoryCache.get(cacheKey)?.let { return it }
+        return withContext(Dispatchers.IO) {
+            val file = File(diskDir(context), "$cacheKey.png")
+            if (file.isFile) {
+                BitmapFactory.decodeFile(file.absolutePath)?.let {
+                    memoryCache.put(cacheKey, it)
+                    return@withContext it
+                }
+                file.delete()
+            }
+            val raw = runCatching { fetchUrl(imageUrl) }.getOrNull() ?: return@withContext null
+            val circled = cropCircle(raw)
+            runCatching {
+                file.outputStream().use { out ->
+                    circled.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+            }
+            memoryCache.put(cacheKey, circled)
+            circled
+        }
+    }
+
+    private fun cropCircle(src: Bitmap): Bitmap {
+        val size = minOf(src.width, src.height).coerceAtLeast(1)
+        val x = (src.width - size) / 2
+        val y = (src.height - size) / 2
+        val square = Bitmap.createBitmap(src, x, y, size, size)
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(out)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        val rect = android.graphics.Rect(0, 0, size, size)
+        val radius = size / 2f
+        canvas.drawARGB(0, 0, 0, 0)
+        canvas.drawCircle(radius, radius, radius, paint)
+        paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(square, rect, rect, paint)
+        return out
+    }
 }

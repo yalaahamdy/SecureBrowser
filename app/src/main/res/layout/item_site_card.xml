@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    بطاقة موقع في شبكة صفحة البداية (v1.7.0):
-    أيقونة الموقع الحقيقية (Favicon) داخل إطار دائري + اسم النطاق تحتها.
-    الحرف البديل يظل خلف الأيقونة حتى تنجح، فيساور القائمة التبديل لحظة
-    التحميل (bind في FaviconLoader يحرّك الظهور بعد توفر الصورة).
--->
+<!-- بطاقة موقع زجاجية احترافية في صفحة البداية (v1.16.0) -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -12,10 +7,11 @@
     android:layout_margin="5dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardCornerRadius="16dp"
+    app:cardBackgroundColor="@color/surfaceGlass"
+    app:cardCornerRadius="18dp"
     app:cardElevation="0dp"
-    app:strokeWidth="1dp"
-    app:strokeColor="?attr/colorOutlineVariant">
+    app:strokeColor="@color/glassStroke"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -28,23 +24,23 @@
 
         <FrameLayout
             android:layout_width="52dp"
-            android:layout_height="52dp">
+            android:layout_height="52dp"
+            android:background="@drawable/bg_favicon_circle">
 
             <TextView
                 android:id="@+id/siteLetter"
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:background="@drawable/bg_letter_tile"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 android:gravity="center"
                 android:importantForAccessibility="no"
-                android:textColor="?attr/colorOnPrimaryContainer"
+                android:textColor="?attr/colorPrimary"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
             <ImageView
                 android:id="@+id/siteIcon"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
                 android:layout_gravity="center"
                 android:contentDescription="@string/cd_site_icon"
                 android:scaleType="fitCenter"
@@ -55,11 +51,12 @@
             android:id="@+id/siteHost"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="9dp"
             android:ellipsize="end"
             android:gravity="center"
             android:lines="2"
-            android:textColor="?attr/colorOnBackground"
-            android:textSize="12sp" />
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="12sp"
+            android:textStyle="bold" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

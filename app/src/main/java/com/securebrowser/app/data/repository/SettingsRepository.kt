@@ -71,6 +71,7 @@ class SettingsRepository(
     val searchEngine: String get() = string("search_engine", "duckduckgo") // google | bing | duckduckgo
     val homepage: String get() = string("homepage", "start")     // start | <url>
     val mediaAutoplay: Boolean get() = bool("media_autoplay", true)
+    val startWallpaper: String get() = string("start_wallpaper", "ocean") // ocean | aurora | sunset | emerald | midnight | minimal
 
     // ————— الوالدين —————
 

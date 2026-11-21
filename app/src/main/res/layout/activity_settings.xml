@@ -54,6 +54,10 @@
                     layout="@layout/row_action_card" />
 
                 <include
+                    android:id="@+id/cardStartWallpaper"
+                    layout="@layout/row_action_card" />
+
+                <include
                     android:id="@+id/cardLanguage"
                     layout="@layout/row_action_card" />
 

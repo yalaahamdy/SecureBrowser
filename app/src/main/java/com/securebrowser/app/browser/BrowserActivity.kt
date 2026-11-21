@@ -136,9 +136,10 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
             startBinding.root, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         )
         startBinding.root.isVisible = false
-        // v1.7.0 — شبكة بطاقات المواقع المسموحة (3 أعمدة)
+        // v1.7.0 — شبكة بطاقات المواقع المسموحة (3 أعمدة) + شبكة قنوات يوتيوب (عمودان ببطاقات عريضة)
         startBinding.sitesGrid.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
-        startBinding.youtubeChannelsGrid.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
+        startBinding.youtubeChannelsGrid.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+        setupStartPageActions()
 
         blockBinding = ViewBlockScreenBinding.inflate(layoutInflater)
         binding.contentContainer.addView(
@@ -213,6 +214,9 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
     override fun onResume() {
         super.onResume()
         com.securebrowser.app.update.AppUpdateManager.onActivityResume(this)
+        if (::startBinding.isInitialized && startBinding.root.isVisible) {
+            showStartPage()
+        }
     }
 
     // ————————————————— استعادة الجلسة —————————————————
@@ -1284,11 +1288,31 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
         }
     }
 
-    // ————————————————— صفحة البداية —————————————————
+    // ————————————————— صفحة البداية الاحترافية —————————————————
+
+    private fun setupStartPageActions() {
+        startBinding.btnStartWallpaper.setOnClickListener {
+            showWallpaperPickerDialog { applyStartWallpaper() }
+        }
+        startBinding.btnStartSearchBox.setOnClickListener {
+            binding.addressBar.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.showSoftInput(binding.addressBar, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+        startBinding.qaStartHistory.setOnClickListener { showQuickHistory() }
+        startBinding.qaStartDownloads.setOnClickListener { openDownloads() }
+        startBinding.qaStartQr.setOnClickListener { openQrScanner() }
+    }
+
+    private fun applyStartWallpaper() {
+        val resId = StartWallpapers.drawableFor(ServiceLocator.settingsRepository.startWallpaper)
+        startBinding.startRootContainer.setBackgroundResource(resId)
+    }
 
     private fun showStartPage() {
         hideBlockOverlay()
         hideErrorOverlay()
+        applyStartWallpaper()
         startBinding.root.isVisible = true
         updateSwipeEnabled()
         tabsManager.activeTab?.update { it.copy(isStartPage = true) }
@@ -1301,9 +1325,9 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                 ServiceLocator.youtubeChannelRepository.currentChannels().filter { it.enabled }
             } else emptyList()
 
-            // v1.7.0 — شبكة مواقع احترافية بأيقونات حقيقية بدل أزرار نصية
-            startBinding.sitesCount.text = getString(R.string.start_sites_count, rules.size)
-            startBinding.sitesGrid.isVisible = rules.isNotEmpty()
+            // قسم المواقع المحفوظة والمسموحة
+            startBinding.sitesSection.isVisible = rules.isNotEmpty()
+            startBinding.sitesCount.text = rules.size.toString()
             startBinding.sitesGrid.adapter = StartSitesAdapter(
                 rules,
                 onOpen = { host ->
@@ -1315,11 +1339,10 @@ class BrowserActivity : AppCompatActivity(), BrowserController {
                 onRemove = { rule -> confirmRemoveSite(rule) }
             )
 
-            // v1.15.0 — بطاقات قنوات يوتيوب المسموحة في صفحة البداية
+            // قسم قنوات يوتيوب المسموحة ببطاقات عريضة وصور حقيقية
             startBinding.youtubeSection.isVisible = ytChannels.isNotEmpty()
             if (ytChannels.isNotEmpty()) {
-                startBinding.youtubeChannelsCount.text =
-                    getString(R.string.start_youtube_channels_count, ytChannels.size)
+                startBinding.youtubeChannelsCount.text = ytChannels.size.toString()
                 startBinding.youtubeChannelsGrid.adapter = StartYoutubeChannelsAdapter(ytChannels) { ch ->
                     lifecycleScope.launch {
                         val channelUrl = "https://m.youtube.com/channel/${ch.channelId}"

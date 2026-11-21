@@ -522,6 +522,16 @@ fun BrowserActivity.openChildSettings() {
     startActivity(android.content.Intent(this, SettingsActivity::class.java))
 }
 
+/** منتقي خلفيات الصفحة الرئيسية الاحترافية (v1.16.0). */
+fun BrowserActivity.showWallpaperPickerDialog(onApplied: (String) -> Unit) {
+    StartWallpapers.showPicker(this, ServiceLocator.settingsRepository.startWallpaper) { spec ->
+        lifecycleScope.launch {
+            ServiceLocator.settingsRepository.put("start_wallpaper", spec.key)
+            onApplied(spec.key)
+        }
+    }
+}
+
 /**
  * حوار تثبيت الموقع كتطبيق على الشاشة الرئيسية (v1.10.0).
  */

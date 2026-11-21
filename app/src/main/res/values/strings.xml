@@ -523,4 +523,22 @@
     <string name="menu_youtube_channels">YouTube Channels</string>
     <string name="site_info_youtube_mode">Protected by YouTube Channels Mode</string>
     <string name="quick_history_search_hint">Filter history…</string>
+
+    <!-- v1.16.0: Professional Start Page & Wallpapers -->
+    <string name="start_shield_badge">Protection Active</string>
+    <string name="start_wallpaper_btn">Background</string>
+    <string name="start_search_placeholder">Search or enter a website address…</string>
+    <string name="start_section_sites">Saved &amp; Allowed Sites</string>
+    <string name="start_section_youtube">Allowed YouTube Channels</string>
+    <string name="start_qa_history">History</string>
+    <string name="start_qa_downloads">Downloads</string>
+    <string name="start_qa_qr">Scan QR</string>
+    <string name="wallpaper_picker_title">Start Page Background</string>
+    <string name="card_start_wallpaper">Start page background</string>
+    <string name="wallpaper_ocean">Ocean Breeze</string>
+    <string name="wallpaper_aurora">Aurora Glow</string>
+    <string name="wallpaper_sunset">Warm Sunset</string>
+    <string name="wallpaper_emerald">Emerald Forest</string>
+    <string name="wallpaper_midnight">Royal Indigo</string>
+    <string name="wallpaper_minimal">Clean Minimal</string>
 </resources>

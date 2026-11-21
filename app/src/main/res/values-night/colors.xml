@@ -22,4 +22,11 @@
     <color name="outlineVariant">#2B3444</color>
     <color name="tempBannerBackground">#3E341A</color>
     <color name="tempBannerForeground">#F5D97E</color>
+
+    <!-- v1.16.0 — ألوان البطاقات الزجاجية في الوضع الليلي -->
+    <color name="surfaceGlass">#B8161B24</color>
+    <color name="surfaceGlassStrong">#DB1B222E</color>
+    <color name="glassStroke">#2EFFFFFF</color>
+    <color name="faviconPlate">#EBF3F7FF</color>
+    <color name="youtubeAccent">#EF4444</color>
 </resources>

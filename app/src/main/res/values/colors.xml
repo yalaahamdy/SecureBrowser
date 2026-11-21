@@ -39,4 +39,11 @@
     <color name="fileArchive">#B45309</color>
     <color name="fileApk">#2E7D32</color>
     <color name="fileDoc">#B3261E</color>
+
+    <!-- v1.16.0 — ألوان البطاقات الزجاجية وصفحة البداية الاحترافية -->
+    <color name="surfaceGlass">#D9FFFFFF</color>
+    <color name="surfaceGlassStrong">#F0FFFFFF</color>
+    <color name="glassStroke">#66FFFFFF</color>
+    <color name="faviconPlate">#FFFFFFFF</color>
+    <color name="youtubeAccent">#DC2626</color>
 </resources>

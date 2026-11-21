@@ -523,4 +523,22 @@
     <string name="menu_youtube_channels">قنوات يوتيوب المسموحة</string>
     <string name="site_info_youtube_mode">محمي عبر وضع قنوات يوتيوب المسموحة</string>
     <string name="quick_history_search_hint">تصفية السجل…</string>
+
+    <!-- v1.16.0: تطوير الصفحة الرئيسية والخلفيات الاحترافية -->
+    <string name="start_shield_badge">الحماية نشطة</string>
+    <string name="start_wallpaper_btn">الخلفية</string>
+    <string name="start_search_placeholder">ابحث أو اكتب عنوان موقع أو قناة…</string>
+    <string name="start_section_sites">المواقع المحفوظة والمسموحة</string>
+    <string name="start_section_youtube">قنوات يوتيوب المسموحة</string>
+    <string name="start_qa_history">السجل</string>
+    <string name="start_qa_downloads">التنزيلات</string>
+    <string name="start_qa_qr">مسح QR</string>
+    <string name="wallpaper_picker_title">اختيار خلفية الصفحة الرئيسية</string>
+    <string name="card_start_wallpaper">خلفية الصفحة الرئيسية</string>
+    <string name="wallpaper_ocean">نسيم المحيط</string>
+    <string name="wallpaper_aurora">الشفق القطبي</string>
+    <string name="wallpaper_sunset">غروب دافئ</string>
+    <string name="wallpaper_emerald">زمرد طبيعي</string>
+    <string name="wallpaper_midnight">نيلي ملكي</string>
+    <string name="wallpaper_minimal">كلاسيكي هادئ</string>
 </resources>

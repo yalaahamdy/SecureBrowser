@@ -34,6 +34,7 @@ class SettingsActivity : AppCompatActivity() {
 
         // عناوين وأيقونات البطاقات — كانت تُترك فارغة في v1.1.0 (نفس عيب شاشة الأمان)
         bindCard(binding.cardTheme, R.drawable.ic_gear, getString(R.string.card_theme)) { showThemeDialog() }
+        bindCard(binding.cardStartWallpaper, R.drawable.ic_palette, getString(R.string.card_start_wallpaper)) { showWallpaperDialog() }
         bindCard(binding.cardLanguage, R.drawable.ic_globe, getString(R.string.card_language)) { showLanguageDialog() }
         bindCard(binding.cardSearchEngine, R.drawable.ic_search, getString(R.string.card_search_engine)) { showSearchEngineDialog() }
         bindCard(binding.cardBlockSearchEngine, R.drawable.ic_shield_block, getString(R.string.card_block_search_engine)) {
@@ -61,6 +62,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun refreshValues() {
         binding.cardTheme.cardValue.isVisible = true
         binding.cardTheme.cardValue.text = themeLabel(settings.theme)
+        binding.cardStartWallpaper.cardValue.isVisible = true
+        binding.cardStartWallpaper.cardValue.text = getString(StartWallpapers.labelResFor(settings.startWallpaper))
         binding.cardLanguage.cardValue.isVisible = true
         binding.cardLanguage.cardValue.text = languageLabel(settings.language)
         binding.cardSearchEngine.cardValue.isVisible = true
@@ -104,6 +107,15 @@ class SettingsActivity : AppCompatActivity() {
         "google" -> getString(R.string.engine_google)
         "bing" -> getString(R.string.engine_bing)
         else -> getString(R.string.engine_duckduckgo)
+    }
+
+    private fun showWallpaperDialog() {
+        StartWallpapers.showPicker(this, settings.startWallpaper) { spec ->
+            lifecycleScope.launch {
+                settings.put("start_wallpaper", spec.key)
+                refreshValues()
+            }
+        }
     }
 
     private fun showThemeDialog() {

@@ -14,6 +14,8 @@ import com.securebrowser.app.data.repository.HistoryRepository
 import com.securebrowser.app.databinding.ItemHistoryRowBinding
 import com.securebrowser.app.databinding.ItemSiteCardBinding
 import com.securebrowser.app.databinding.ItemTabCardBinding
+import com.securebrowser.app.databinding.ItemWallpaperCardBinding
+import com.securebrowser.app.databinding.ItemYoutubeStartCardBinding
 import com.securebrowser.app.security.whitelist.WhiteListRule
 import com.securebrowser.app.ui.FaviconLoader
 import kotlinx.coroutines.launch
@@ -312,40 +314,113 @@ class StartSitesAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val rule = rules[position]
         val b = holder.binding
-        b.siteHost.text = rule.host
-        b.siteLetter.text = FaviconLoader.initialFor(rule.host)
-        FaviconLoader.bind(b.root, b.siteIcon, b.siteLetter, rule.host, FaviconLoader.initialFor(rule.host))
+        b.siteHost.text = rule.host.removePrefix("www.")
+        val letter = FaviconLoader.initialFor(rule.host)
+        b.siteLetter.text = letter
+        FaviconLoader.bind(b.root, b.siteIcon, b.siteLetter, rule.host, letter)
         b.root.setOnClickListener { onOpen(rule.host) }
         b.root.setOnLongClickListener { onRemove(rule); true }
     }
 }
 
 /**
- * شبكة قنوات يوتيوب المسموحة في صفحة البداية (v1.15.0) —
- * دخول بنقرة واحدة إلى `m.youtube.com/channel/UC...` مع حظر كل ما عدا القنوات المسموحة.
+ * شبكة قنوات يوتيوب المسموحة في صفحة البداية (v1.16.0) —
+ * بطاقات احترافية بعمودين تعرض صورة القناة الدائرية الحقيقية، اسم القناة، و@handle.
  */
 class StartYoutubeChannelsAdapter(
     private val channels: List<com.securebrowser.app.data.db.entity.YoutubeChannelEntity>,
     private val onOpen: (com.securebrowser.app.data.db.entity.YoutubeChannelEntity) -> Unit
 ) : RecyclerView.Adapter<StartYoutubeChannelsAdapter.Holder>() {
 
-    class Holder(val binding: ItemSiteCardBinding) : RecyclerView.ViewHolder(binding.root)
+    class Holder(val binding: ItemYoutubeStartCardBinding) : RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
-        Holder(ItemSiteCardBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        Holder(ItemYoutubeStartCardBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun getItemCount(): Int = channels.size
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val ch = channels[position]
         val b = holder.binding
-        b.siteHost.text = ch.title
+        b.ytChannelTitle.text = ch.title
+        b.ytChannelHandle.text = ch.handle ?: ch.channelId
         val letter = ch.title.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "Y"
-        b.siteLetter.text = letter
-        b.siteLetter.isVisible = true
-        b.siteIcon.isVisible = true
-        b.siteIcon.setImageResource(R.drawable.ic_play)
-        b.siteIcon.alpha = 0.25f
+        FaviconLoader.bindCircleUrl(
+            hostView = b.root,
+            icon = b.ytAvatarImage,
+            letter = b.ytAvatarLetter,
+            imageUrl = ch.avatarUrl,
+            fallbackLetter = letter
+        )
         b.root.setOnClickListener { onOpen(ch) }
+    }
+}
+
+/** كتالوج خلفيات الصفحة الرئيسية الاحترافية (v1.16.0). */
+object StartWallpapers {
+    data class Spec(val key: String, val titleRes: Int, val drawableRes: Int)
+
+    val ALL = listOf(
+        Spec("ocean", R.string.wallpaper_ocean, R.drawable.bg_start_ocean),
+        Spec("aurora", R.string.wallpaper_aurora, R.drawable.bg_start_aurora),
+        Spec("sunset", R.string.wallpaper_sunset, R.drawable.bg_start_sunset),
+        Spec("emerald", R.string.wallpaper_emerald, R.drawable.bg_start_emerald),
+        Spec("midnight", R.string.wallpaper_midnight, R.drawable.bg_start_midnight),
+        Spec("minimal", R.string.wallpaper_minimal, R.drawable.bg_start_minimal)
+    )
+
+    fun specFor(key: String?): Spec = ALL.firstOrNull { it.key == key } ?: ALL.first()
+
+    fun drawableFor(key: String?): Int = specFor(key).drawableRes
+
+    fun labelResFor(key: String?): Int = specFor(key).titleRes
+
+    fun showPicker(
+        activity: androidx.appcompat.app.AppCompatActivity,
+        currentKey: String,
+        onPick: (Spec) -> Unit
+    ) {
+        val pickerBinding = com.securebrowser.app.databinding.DialogWallpaperPickerBinding.inflate(activity.layoutInflater)
+        pickerBinding.wallpaperRecycler.layoutManager =
+            androidx.recyclerview.widget.GridLayoutManager(activity, 2)
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.wallpaper_picker_title)
+            .setView(pickerBinding.root)
+            .setNegativeButton(R.string.close, null)
+            .create()
+        pickerBinding.wallpaperRecycler.adapter = WallpaperPickerAdapter(currentKey) { spec ->
+            onPick(spec)
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+}
+
+class WallpaperPickerAdapter(
+    private val selectedKey: String,
+    private val onPick: (StartWallpapers.Spec) -> Unit
+) : RecyclerView.Adapter<WallpaperPickerAdapter.Holder>() {
+
+    class Holder(val binding: ItemWallpaperCardBinding) : RecyclerView.ViewHolder(binding.root)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
+        Holder(ItemWallpaperCardBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+
+    override fun getItemCount(): Int = StartWallpapers.ALL.size
+
+    override fun onBindViewHolder(holder: Holder, position: Int) {
+        val spec = StartWallpapers.ALL[position]
+        val b = holder.binding
+        val selected = spec.key == selectedKey
+        b.wallpaperPreview.setBackgroundResource(spec.drawableRes)
+        b.wallpaperName.setText(spec.titleRes)
+        b.wallpaperCheck.isVisible = selected
+        b.wallpaperCard.strokeColor = MaterialColors.getColor(
+            b.wallpaperCard,
+            if (selected) androidx.appcompat.R.attr.colorPrimary else com.google.android.material.R.attr.colorOutlineVariant
+        )
+        val density = b.root.resources.displayMetrics.density
+        b.wallpaperCard.strokeWidth = ((if (selected) 2.5f else 1f) * density).toInt()
+        b.root.setOnClickListener { onPick(spec) }
     }
 }
